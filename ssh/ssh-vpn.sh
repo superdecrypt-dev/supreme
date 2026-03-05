@@ -137,21 +137,42 @@ download_usr_bin() {
 restart_service_if_present() {
 	local service_name="$1"
 	local label="$2"
+	local candidates=("$service_name")
+
+	# Debian/Ubuntu naming may differ between "ssh" and "sshd" on some systems.
+	if [ "$service_name" = "ssh" ]; then
+		candidates=("ssh" "sshd")
+	fi
+
 	if command -v systemctl >/dev/null 2>&1; then
-		if systemctl list-unit-files --type=service --no-legend 2>/dev/null | awk '{print $1}' | grep -qx "${service_name}.service"; then
-			if ! systemctl restart "${service_name}.service" >/dev/null 2>&1; then
+		local candidate load_state
+		for candidate in "${candidates[@]}"; do
+			load_state="$(systemctl show -p LoadState --value "${candidate}.service" 2>/dev/null || true)"
+			if [ -n "$load_state" ] && [ "$load_state" != "not-found" ]; then
+				if ! systemctl restart "${candidate}.service" >/dev/null 2>&1; then
+					echo -e "[ ${yell}WARN${NC} ] Failed to restart ${label}, continuing"
+				fi
+				return
+			fi
+		done
+	fi
+
+	local candidate
+	for candidate in "${candidates[@]}"; do
+		if [ -x "/etc/init.d/${candidate}" ]; then
+			if ! /etc/init.d/"${candidate}" restart >/dev/null 2>&1; then
 				echo -e "[ ${yell}WARN${NC} ] Failed to restart ${label}, continuing"
 			fi
 			return
 		fi
-	fi
+	done
 
-	if [ -x "/etc/init.d/${service_name}" ]; then
-		if ! /etc/init.d/"${service_name}" restart >/dev/null 2>&1; then
-			echo -e "[ ${yell}WARN${NC} ] Failed to restart ${label}, continuing"
-		fi
-	else
-		echo -e "[ ${yell}WARN${NC} ] ${label} not installed, skipping restart"
+	echo -e "[ ${yell}WARN${NC} ] ${label} not installed, skipping restart"
+}
+
+iptables_append_once() {
+	if ! iptables -C "$@" >/dev/null 2>&1; then
+		iptables -A "$@"
 	fi
 }
 
@@ -383,17 +404,17 @@ fi
 apt -y install fail2ban
 
 # blokir torrent
-iptables -A FORWARD -m string --string "get_peers" --algo bm -j DROP
-iptables -A FORWARD -m string --string "announce_peer" --algo bm -j DROP
-iptables -A FORWARD -m string --string "find_node" --algo bm -j DROP
-iptables -A FORWARD -m string --algo bm --string "BitTorrent" -j DROP
-iptables -A FORWARD -m string --algo bm --string "BitTorrent protocol" -j DROP
-iptables -A FORWARD -m string --algo bm --string "peer_id=" -j DROP
-iptables -A FORWARD -m string --algo bm --string ".torrent" -j DROP
-iptables -A FORWARD -m string --algo bm --string "announce.php?passkey=" -j DROP
-iptables -A FORWARD -m string --algo bm --string "torrent" -j DROP
-iptables -A FORWARD -m string --algo bm --string "announce" -j DROP
-iptables -A FORWARD -m string --algo bm --string "info_hash" -j DROP
+iptables_append_once FORWARD -m string --string "get_peers" --algo bm -j DROP
+iptables_append_once FORWARD -m string --string "announce_peer" --algo bm -j DROP
+iptables_append_once FORWARD -m string --string "find_node" --algo bm -j DROP
+iptables_append_once FORWARD -m string --algo bm --string "BitTorrent" -j DROP
+iptables_append_once FORWARD -m string --algo bm --string "BitTorrent protocol" -j DROP
+iptables_append_once FORWARD -m string --algo bm --string "peer_id=" -j DROP
+iptables_append_once FORWARD -m string --algo bm --string ".torrent" -j DROP
+iptables_append_once FORWARD -m string --algo bm --string "announce.php?passkey=" -j DROP
+iptables_append_once FORWARD -m string --algo bm --string "torrent" -j DROP
+iptables_append_once FORWARD -m string --algo bm --string "announce" -j DROP
+iptables_append_once FORWARD -m string --algo bm --string "info_hash" -j DROP
 iptables-save >/etc/iptables.up.rules
 iptables-restore -t </etc/iptables.up.rules
 netfilter-persistent save
