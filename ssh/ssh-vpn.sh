@@ -281,9 +281,11 @@ restart_service_if_present "nginx" "nginx"
 
 # install badvpn
 cd
-download_file /usr/bin/badvpn-udpgw "ssh/newudpgw"
-chmod +x /usr/bin/badvpn-udpgw
 pkill -f "badvpn-udpgw --listen-addr 127.0.0.1:" >/dev/null 2>&1 || true
+tmp_badvpn_bin="$(mktemp)"
+download_file "$tmp_badvpn_bin" "ssh/newudpgw"
+install -m 0755 "$tmp_badvpn_bin" /usr/bin/badvpn-udpgw
+rm -f "$tmp_badvpn_bin"
 for port in 7100 7200 7300 7400 7500 7600 7700 7800 7900; do
 	insert_rc_local_once "screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:${port} --max-clients 500"
 	screen -dmS badvpn badvpn-udpgw --listen-addr "127.0.0.1:${port}" --max-clients 500
