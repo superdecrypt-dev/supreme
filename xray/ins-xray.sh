@@ -135,14 +135,28 @@ echo -e "[ ${green}INFO$NC ] Installing dependencies"
 apt clean all && apt update
 apt install curl socat xz-utils wget apt-transport-https gnupg gnupg2 gnupg1 dnsutils lsb-release cron bash-completion ntpdate chrony zip pwgen openssl netcat-openbsd -y
 ntpdate pool.ntp.org || true
-for chrony_service in chronyd chrony; do
-	if systemctl list-unit-files | awk '{print $1}' | grep -qx "${chrony_service}.service"; then
-		echo -e "[ ${green}INFO$NC ] Enable ${chrony_service}"
-		systemctl enable "${chrony_service}"
-		systemctl restart "${chrony_service}"
-		break
-	fi
-done
+chrony_started=0
+if command -v systemctl >/dev/null 2>&1; then
+	for chrony_service in chrony chronyd; do
+		load_state="$(systemctl show -p LoadState --value "${chrony_service}.service" 2>/dev/null || true)"
+		if [ -z "$load_state" ] || [ "$load_state" = "not-found" ]; then
+			continue
+		fi
+
+		if systemctl restart "${chrony_service}" >/dev/null 2>&1; then
+			if ! systemctl enable "${chrony_service}" >/dev/null 2>&1; then
+				echo -e "[ ${yell}WARN${NC} ] Failed to enable ${chrony_service}, continuing"
+			fi
+			echo -e "[ ${green}INFO$NC ] Using ${chrony_service} service"
+			chrony_started=1
+			break
+		fi
+	done
+fi
+
+if [ "$chrony_started" -eq 0 ]; then
+	echo -e "[ ${yell}WARN${NC} ] Chrony service not found or failed to start, continuing"
+fi
 sleep 0.5
 echo -e "[ ${green}INFO$NC ] Setting chrony tracking"
 chronyc sourcestats -v || true
