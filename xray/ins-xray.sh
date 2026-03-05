@@ -5,7 +5,12 @@ set -o pipefail
 green='\e[0;32m'
 yell='\e[1;33m'
 NC='\e[0m'
-RAW_BASE_URL="https://raw.githubusercontent.com/superdecrypt-dev/supreme/main"
+SUPREME_REF="${SUPREME_REF:-$(cat /opt/.supreme_ref 2>/dev/null || true)}"
+if [ -z "$SUPREME_REF" ]; then
+  echo -e "[ ${yell}ERROR${NC} ] SUPREME_REF is not set. Run setup.sh first or export SUPREME_REF."
+  exit 1
+fi
+RAW_BASE_URL="https://raw.githubusercontent.com/superdecrypt-dev/supreme/${SUPREME_REF}"
 XRAY_INSTALL_COMMIT="e741a4f56d368afbb9e5be3361b40c4552d3710d"
 ACME_SH_COMMIT="f39d066ced0271d87790dc426556c1e02a88c91b"
 XRAY_INSTALL_URL="https://raw.githubusercontent.com/XTLS/Xray-install/${XRAY_INSTALL_COMMIT}/install-release.sh"
@@ -15,7 +20,16 @@ download_usr_bin() {
   local bin_name="$1"
   local remote_path="$2"
   local url="${RAW_BASE_URL}/${remote_path}"
-  if ! wget -q -O "/usr/bin/${bin_name}" "$url"; then
+  local local_source="${SUPREME_LOCAL_SOURCE:-}"
+  local local_file=""
+
+  if [ -n "$local_source" ]; then
+    local_file="${local_source%/}/${remote_path}"
+  fi
+
+  if [ -n "$local_file" ] && [ -f "$local_file" ]; then
+    cp -f "$local_file" "/usr/bin/${bin_name}"
+  elif ! wget -q -O "/usr/bin/${bin_name}" "$url"; then
     echo -e "[ ${yell}ERROR${NC} ] Failed to download ${url}"
     exit 1
   fi
@@ -570,5 +584,5 @@ fi
 if [ -f /root/scdomain ];then
 rm /root/scdomain > /dev/null 2>&1
 fi
-clear
+clear >/dev/null 2>&1 || true
 rm -f ins-xray.sh  

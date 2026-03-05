@@ -57,6 +57,28 @@ restart_initd_or_warn() {
   restart_initd_if_present "$service_name" || echo -e "[ \033[33mWarn\033[0m ] ${label} service not installed"
 }
 
+restart_systemd_if_present() {
+  local unit_name=$1
+  local label=$2
+
+  if ! command -v systemctl >/dev/null 2>&1; then
+    echo -e "[ \033[33mWarn\033[0m ] systemctl not available, skip ${label}"
+    return 1
+  fi
+
+  if ! systemctl list-unit-files 2>/dev/null | awk '{print $1}' | grep -qx "${unit_name}"; then
+    echo -e "[ \033[33mWarn\033[0m ] ${label} service not installed"
+    return 1
+  fi
+
+  if ! systemctl restart "${unit_name}" >/dev/null 2>&1; then
+    echo -e "[ \033[33mWarn\033[0m ] Failed to restart ${label}"
+    return 1
+  fi
+
+  return 0
+}
+
 restart_all() {
   print_begin
   restart_initd_or_warn ssh "SSH"
@@ -70,7 +92,7 @@ restart_all() {
 
   echo -e "[ \033[32mok\033[0m ] Restarting xray Service (via systemctl) "
   sleep 0.5
-  systemctl restart xray
+  restart_systemd_if_present xray.service "XRAY"
 
   echo -e "[ \033[32mok\033[0m ] Restarting badvpn Service (via systemctl) "
   sleep 0.5
@@ -82,17 +104,13 @@ restart_all() {
   sleep 0.5
   echo -e "[ \033[32mok\033[0m ] Restarting websocket Service (via systemctl) "
   sleep 0.5
-  systemctl restart ws-dropbear.service
-  systemctl restart ws-stunnel.service
+  restart_systemd_if_present ws-dropbear.service "Websocket Dropbear"
+  restart_systemd_if_present ws-stunnel.service "Websocket Stunnel"
 
   sleep 0.5
   echo -e "[ \033[32mok\033[0m ] Restarting Trojan Go Service (via systemctl) "
   sleep 0.5
-  if systemctl list-unit-files | awk '{print $1}' | grep -qx 'trojan-go.service'; then
-    systemctl restart trojan-go.service
-  else
-    echo -e "[ \033[33mWarn\033[0m ] Trojan Go service not installed"
-  fi
+  restart_systemd_if_present trojan-go.service "Trojan Go"
   sleep 0.5
 
   echo -e "[ \033[32mInfo\033[0m ] ALL Service Restarted"
@@ -137,37 +155,23 @@ while true; do
       echo -e "[ \033[32mInfo\033[0m ] Badvpn Service Restarted"
       pause_back
       ;;
-    9)
-      print_begin
-      echo -e "[ \033[32mok\033[0m ] Restarting xray Service (via systemctl) "
-      systemctl restart xray
-      sleep 0.5
-      echo -e "[ \033[32mInfo\033[0m ] XRAY Service Restarted"
-      pause_back
-      ;;
+    9) restart_single "XRAY" restart_systemd_if_present xray.service "XRAY" ;;
     10)
       print_begin
       echo -e "[ \033[32mok\033[0m ] Restarting websocket Service (via systemctl) "
       sleep 0.5
-      systemctl restart ws-dropbear.service
-      systemctl restart ws-stunnel.service
+      ws_ok=0
+      restart_systemd_if_present ws-dropbear.service "Websocket Dropbear" && ws_ok=1
+      restart_systemd_if_present ws-stunnel.service "Websocket Stunnel" && ws_ok=1
       sleep 0.5
-      echo -e "[ \033[32mInfo\033[0m ] WEBSOCKET Service Restarted"
-      pause_back
-      ;;
-    11)
-      print_begin
-      echo -e "[ \033[32mok\033[0m ] Restarting Trojan Go Service (via systemctl) "
-      sleep 0.5
-      if systemctl list-unit-files | awk '{print $1}' | grep -qx 'trojan-go.service'; then
-        systemctl restart trojan-go.service
-        echo -e "[ \033[32mInfo\033[0m ] Trojan Go Service Restarted"
+      if [ "$ws_ok" -eq 1 ]; then
+        echo -e "[ \033[32mInfo\033[0m ] WEBSOCKET Service Restarted"
       else
-        echo -e "[ \033[33mWarn\033[0m ] Trojan Go service not installed"
+        echo -e "[ \033[33mWarn\033[0m ] WEBSOCKET services not installed or failed"
       fi
-      sleep 0.5
       pause_back
       ;;
+    11) restart_single "Trojan Go" restart_systemd_if_present trojan-go.service "Trojan Go" ;;
     0)
       menu
       exit 0

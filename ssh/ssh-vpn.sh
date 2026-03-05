@@ -14,7 +14,12 @@ export DEBIAN_FRONTEND=noninteractive
 green='\e[0;32m'
 yell='\e[1;33m'
 NC='\e[0m'
-RAW_BASE_URL="https://raw.githubusercontent.com/superdecrypt-dev/supreme/main"
+SUPREME_REF="${SUPREME_REF:-$(cat /opt/.supreme_ref 2>/dev/null || true)}"
+if [ -z "$SUPREME_REF" ]; then
+  echo -e "[ ${yell}ERROR${NC} ] SUPREME_REF is not set. Run setup.sh first or export SUPREME_REF."
+  exit 1
+fi
+RAW_BASE_URL="https://raw.githubusercontent.com/superdecrypt-dev/supreme/${SUPREME_REF}"
 
 # helpers
 append_line_once() {
@@ -50,6 +55,18 @@ download_file() {
   local dest="$1"
   local remote_path="$2"
   local url="${RAW_BASE_URL}/${remote_path}"
+  local local_source="${SUPREME_LOCAL_SOURCE:-}"
+  local local_file=""
+
+  if [ -n "$local_source" ]; then
+    local_file="${local_source%/}/${remote_path}"
+  fi
+
+  if [ -n "$local_file" ] && [ -f "$local_file" ]; then
+    cp -f "$local_file" "$dest"
+    return
+  fi
+
   if ! wget -q -O "$dest" "$url"; then
     echo -e "[ ${yell}ERROR${NC} ] Failed to download ${url}"
     exit 1
@@ -83,11 +100,10 @@ commonname=none
 email=none
 
 # simple password minimal
-pam_src_url="https://raw.githubusercontent.com/superdecrypt-dev/supreme/main/ssh/password"
 pam_enc_file=$(mktemp)
 pam_dec_file=$(mktemp)
-if ! curl -fsSL "$pam_src_url" -o "$pam_enc_file"; then
-  echo "Failed to download PAM policy from ${pam_src_url}"
+if ! download_file "$pam_enc_file" "ssh/password"; then
+  echo "Failed to download PAM policy payload"
   rm -f "$pam_enc_file" "$pam_dec_file"
   exit 1
 fi
@@ -380,4 +396,4 @@ rm -f /root/cert.pem
 rm -f /root/ssh-vpn.sh
 
 # finihsing
-clear
+clear >/dev/null 2>&1 || true

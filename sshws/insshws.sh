@@ -4,7 +4,12 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-RAW_BASE_URL="https://raw.githubusercontent.com/superdecrypt-dev/supreme/main"
+SUPREME_REF="${SUPREME_REF:-$(cat /opt/.supreme_ref 2>/dev/null || true)}"
+if [ -z "$SUPREME_REF" ]; then
+  echo "SUPREME_REF is not set. Run setup.sh first or export SUPREME_REF."
+  exit 1
+fi
+RAW_BASE_URL="https://raw.githubusercontent.com/superdecrypt-dev/supreme/${SUPREME_REF}"
 
 cd
 
@@ -12,6 +17,17 @@ download_file() {
   local dest="$1"
   local remote_path="$2"
   local url="${RAW_BASE_URL}/${remote_path}"
+  local local_source="${SUPREME_LOCAL_SOURCE:-}"
+  local local_file=""
+
+  if [ -n "$local_source" ]; then
+    local_file="${local_source%/}/${remote_path}"
+  fi
+
+  if [ -n "$local_file" ] && [ -f "$local_file" ]; then
+    cp -f "$local_file" "$dest"
+    return
+  fi
 
   if ! wget -q -O "$dest" "$url"; then
     echo "Failed to download ${url}"

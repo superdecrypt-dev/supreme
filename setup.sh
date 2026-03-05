@@ -3,22 +3,61 @@
 set -o errexit
 set -o pipefail
 
-clear
+safe_clear() {
+  clear >/dev/null 2>&1 || true
+}
+
+safe_clear
 green='\e[0;32m'
 yell='\e[1;33m'
 tyblue='\e[1;36m'
 NC='\e[0m'
 red() { echo -e "\\033[31;1m${*}\\033[0m"; }
-RAW_BASE_URL="https://raw.githubusercontent.com/superdecrypt-dev/supreme/main"
+SUPREME_REF_FILE="/opt/.supreme_ref"
+
+resolve_supreme_ref() {
+  if [ -n "${SUPREME_REF:-}" ]; then
+    echo "$SUPREME_REF"
+    return
+  fi
+
+  if [ -s "$SUPREME_REF_FILE" ]; then
+    cat "$SUPREME_REF_FILE"
+    return
+  fi
+
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if command -v git >/dev/null 2>&1 && git -C "$script_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git -C "$script_dir" rev-parse HEAD
+    return
+  fi
+
+  echo -e "[ ${yell}ERROR${NC} ] Unable to resolve SUPREME_REF deterministically"
+  echo -e "[ ${yell}ERROR${NC} ] Run from cloned repo or set SUPREME_REF=<commit-hash>"
+  return 1
+}
+
+SUPREME_REF="$(resolve_supreme_ref)"
+mkdir -p /opt
+echo "$SUPREME_REF" > "$SUPREME_REF_FILE"
+RAW_BASE_URL="https://raw.githubusercontent.com/superdecrypt-dev/supreme/${SUPREME_REF}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export SUPREME_LOCAL_SOURCE="${SUPREME_LOCAL_SOURCE:-$SCRIPT_DIR}"
 
 download_and_run() {
   local remote_path="$1"
   local local_name="$2"
   local url="${RAW_BASE_URL}/${remote_path}"
+  local local_source="${SUPREME_LOCAL_SOURCE%/}/${remote_path}"
 
-  if ! wget -q -O "$local_name" "$url"; then
-    echo -e "[ ${yell}ERROR${NC} ] Failed to download ${url}"
-    exit 1
+  if [ -f "$local_source" ]; then
+    cp -f "$local_source" "$local_name"
+  else
+    if ! wget -q -O "$local_name" "$url"; then
+      echo -e "[ ${yell}ERROR${NC} ] Failed to download ${url}"
+      exit 1
+    fi
   fi
   chmod +x "$local_name"
   if ! "./$local_name"; then
@@ -90,7 +129,7 @@ if ! dpkg -s "$required_pkg" >/dev/null 2>&1; then
   exit
 fi
 
-clear
+safe_clear
 
 secs_to_human() {
   echo "Installation time : $(( $1 / 3600 )) hours $(( ($1 / 60) % 60 )) minute's $(( $1 % 60 )) seconds"
@@ -112,29 +151,39 @@ if ! grep -q '^IP=' /var/lib/ipvps.conf 2>/dev/null; then
 fi
 
 echo ""
-clear
+safe_clear
 red "Tambah Domain Untuk XRAY"
 echo " "
+existing_domain=""
+if [ -s /root/domain ]; then
+  existing_domain=$(< /root/domain)
+fi
 read -rp "Input domain kamu : " -e dns
 if [ -z "$dns" ]; then
-  echo -e "
+  if [ -n "$existing_domain" ]; then
+    dns="$existing_domain"
+    echo -e "
         Nothing input for domain!
-        Existing domain value will be kept"
-else
-  echo "$dns" > /root/scdomain
-  echo "$dns" > /etc/xray/scdomain
-  echo "$dns" > /etc/xray/domain
-  echo "$dns" > /etc/v2ray/domain
-  echo "$dns" > /root/domain
-  echo "IP=$dns" > /var/lib/ipvps.conf
+        Existing domain value will be kept: $dns"
+  else
+    echo -e "[ ${yell}ERROR${NC} ] Domain is required for XRAY installation"
+    exit 1
+  fi
 fi
+
+echo "$dns" > /root/scdomain
+echo "$dns" > /etc/xray/scdomain
+echo "$dns" > /etc/xray/domain
+echo "$dns" > /etc/v2ray/domain
+echo "$dns" > /root/domain
+echo "IP=$dns" > /var/lib/ipvps.conf
 
 # install ssh ovpn
 echo -e "\e[33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 echo -e "$green      Install SSH Websocket               $NC"
 echo -e "\e[33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 sleep 0.5
-clear
+safe_clear
 download_and_run "ssh/ssh-vpn.sh" "ssh-vpn.sh"
 
 # install xray
@@ -142,11 +191,11 @@ echo -e "\e[33m━━━━━━━━━━━━━━━━━━━━━�
 echo -e "$green          Install XRAY              $NC"
 echo -e "\e[33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 sleep 0.5
-clear
+safe_clear
 download_and_run "xray/ins-xray.sh" "ins-xray.sh"
 download_and_run "sshws/insshws.sh" "insshws.sh"
 
-clear
+safe_clear
 cat > /root/.profile << END
 # ~/.profile: executed by Bourne-compatible login shells.
 
@@ -157,7 +206,7 @@ if [ "$BASH" ]; then
 fi
 
 mesg n || true
-clear
+safe_clear
 menu
 END
 chmod 644 /root/.profile
