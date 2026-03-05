@@ -1,10 +1,12 @@
-domain=$(cat /etc/xray/domain)
-tls="$(cat ~/log-install.txt | grep -w "Vless WS TLS" | cut -d: -f2|sed 's/ //g')"
-none="$(cat ~/log-install.txt | grep -w "Vless WS none TLS" | cut -d: -f2|sed 's/ //g')"
-user=trial`</dev/urandom tr -dc X-Z0-9 | head -c4`
-uuid=$(cat /proc/sys/kernel/random/uuid)
+#!/bin/bash
+
+domain=$(< /etc/xray/domain)
+tls=$(grep -w "Vless WS TLS" ~/log-install.txt | cut -d: -f2 | tr -d ' ')
+none=$(grep -w "Vless WS none TLS" ~/log-install.txt | cut -d: -f2 | tr -d ' ')
+user=trial$(</dev/urandom tr -dc X-Z0-9 | head -c4)
+uuid=$(< /proc/sys/kernel/random/uuid)
 masaaktif=1
-exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
+exp=$(date -d "$masaaktif days" +"%Y-%m-%d")
 sed -i '/#vless$/a\#& '"$user $exp"'\
 },{"id": "'""$uuid""'","email": "'""$user""'"' /etc/xray/config.json
 sed -i '/#vlessgrpc$/a\#& '"$user $exp"'\

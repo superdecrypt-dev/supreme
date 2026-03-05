@@ -1,19 +1,18 @@
-domain=$(cat /etc/xray/domain)
-tls="$(cat ~/log-install.txt | grep -w "Shadowsocks WS TLS" | cut -d: -f2|sed 's/ //g')"
-ntls="$(cat ~/log-install.txt | grep -w "Shadowsocks WS none TLS" | cut -d: -f2|sed 's/ //g')"
-user=trial`</dev/urandom tr -dc X-Z0-9 | head -c4`
+#!/bin/bash
+
+domain=$(< /etc/xray/domain)
+tls=$(grep -w "Shadowsocks WS TLS" ~/log-install.txt | cut -d: -f2 | tr -d ' ')
+ntls=$(grep -w "Shadowsocks WS none TLS" ~/log-install.txt | cut -d: -f2 | tr -d ' ')
+user=trial$(</dev/urandom tr -dc X-Z0-9 | head -c4)
 cipher="aes-128-gcm"
-uuid=$(cat /proc/sys/kernel/random/uuid)
+uuid=$(< /proc/sys/kernel/random/uuid)
 masaaktif=1
-exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
+exp=$(date -d "$masaaktif days" +"%Y-%m-%d")
 sed -i '/#ssws$/a\### '"$user $exp"'\
 },{"password": "'""$uuid""'","method": "'""$cipher""'","email": "'""$user""'"' /etc/xray/config.json
 sed -i '/#ssgrpc$/a\### '"$user $exp"'\
 },{"password": "'""$uuid""'","method": "'""$cipher""'","email": "'""$user""'"' /etc/xray/config.json
-echo $cipher:$uuid > /tmp/log
-shadowsocks_base64=$(cat /tmp/log)
-echo -n "${shadowsocks_base64}" | base64 > /tmp/log1
-shadowsocks_base64e=$(cat /tmp/log1)
+shadowsocks_base64e=$(printf '%s' "${cipher}:${uuid}" | base64 -w 0)
 shadowsockslink="ss://${shadowsocks_base64e}@isi_bug_disini:$tls?path=ss-ws&security=tls&host=${domain}&type=ws&sni=${domain}#${user}"
 shadowsockslink2="ss://${shadowsocks_base64e}@isi_bug_disini:$ntls?path=ss-ws&security=tls&host=${domain}&type=ws#${user}"
 shadowsockslink1="ss://${shadowsocks_base64e}@${domain}:$tls?mode=gun&security=tls&type=grpc&serviceName=ss-grpc&sni=bug.com#${user}"
@@ -27,7 +26,7 @@ echo -e "Remarks        : ${user}"
 echo -e "Domain         : ${domain}"
 echo -e "Wildcard       : (bug.com).${domain}"
 echo -e "Port TLS       : ${tls}"
-echo -e "Port none TLS  : ${tls}"
+echo -e "Port none TLS  : ${ntls}"
 echo -e "Port gRPC      : ${tls}"
 echo -e "Password       : ${uuid}"
 echo -e "Ciphers        : ${cipher}"

@@ -3,7 +3,7 @@ echo -e "
 "
 date
 echo ""
-domain=$(cat /root/domain)
+domain=$(< /root/domain)
 sleep 0.5
 mkdir -p /etc/xray 
 echo -e "[ ${green}INFO${NC} ] Checking... "
@@ -38,8 +38,8 @@ apt install curl pwgen openssl netcat cron -y
 # install xray
 sleep 0.5
 echo -e "[ ${green}INFO$NC ] Downloading & Installing xray core"
-domainSock_dir="/run/xray";! [ -d $domainSock_dir ] && mkdir  $domainSock_dir
-chown www-data.www-data $domainSock_dir
+mkdir -p /run/xray
+chown www-data.www-data /run/xray
 # Make Folder XRay
 mkdir -p /var/log/xray
 mkdir -p /etc/xray
@@ -75,7 +75,7 @@ if ! grep -q 'ssl_renew.sh' /var/spool/cron/crontabs/root;then (crontab -l;echo 
 mkdir -p /home/vps/public_html
 
 # set uuid
-uuid=$(cat /proc/sys/kernel/random/uuid)
+uuid=$(< /proc/sys/kernel/random/uuid)
 # xray config
 cat > /etc/xray/config.json << END
 {
@@ -482,12 +482,12 @@ echo -e "$yell[SERVICE]$NC Restart All service"
 systemctl daemon-reload
 sleep 0.5
 echo -e "[ ${green}ok${NC} ] Enable & restart xray "
-systemctl daemon-reload
 systemctl enable xray
 systemctl restart xray
 systemctl restart nginx
 systemctl enable runn
 systemctl restart runn
+
 
 cd /usr/bin/
 # vmess

@@ -1,97 +1,91 @@
 #!/bin/bash
 # SCRIPT ENVY VPN
-#!/bin/bash
+
 clear
-MAX=1
-if [ -e "/var/log/auth.log" ]; then
-        OS=1;
-        LOG="/var/log/auth.log";
+max_allowed=1
+os_type=0
+log_file=""
+
+if [ -e /var/log/auth.log ]; then
+  os_type=1
+  log_file=/var/log/auth.log
 fi
-if [ -e "/var/log/secure" ]; then
-        OS=2;
-        LOG="/var/log/secure";
+if [ -e /var/log/secure ]; then
+  os_type=2
+  log_file=/var/log/secure
 fi
 
-if [ $OS -eq 1 ]; then
-	service ssh restart > /dev/null 2>&1;
-fi
-if [ $OS -eq 2 ]; then
-	service sshd restart > /dev/null 2>&1;
-fi
-	service dropbear restart > /dev/null 2>&1;
-				
-if [[ ${1+x} ]]; then
-        MAX=$1;
+if [ "$os_type" -eq 0 ]; then
+  echo "No auth log found."
+  exit 0
 fi
 
-        cat /etc/passwd | grep "/home/" | cut -d":" -f1 > /root/user.txt
-        username1=( `cat "/root/user.txt" `);
-        i="0";
-        for user in "${username1[@]}"
-			do
-                username[$i]=`echo $user | sed 's/'\''//g'`;
-                jumlah[$i]=0;
-                i=$i+1;
-			done
-        cat $LOG | grep -i dropbear | grep -i "Password auth succeeded" > /tmp/log-db.txt
-        proc=( `ps aux | grep -i dropbear | awk '{print $2}'`);
-        for PID in "${proc[@]}"
-			do
-                cat /tmp/log-db.txt | grep "dropbear\[$PID\]" > /tmp/log-db-pid.txt
-                NUM=`cat /tmp/log-db-pid.txt | wc -l`;
-                USER=`cat /tmp/log-db-pid.txt | awk '{print $10}' | sed 's/'\''//g'`;
-                IP=`cat /tmp/log-db-pid.txt | awk '{print $12}'`;
-                if [ $NUM -eq 1 ]; then
-                        i=0;
-                        for user1 in "${username[@]}"
-							do
-                                if [ "$USER" == "$user1" ]; then
-                                        jumlah[$i]=`expr ${jumlah[$i]} + 1`;
-                                        pid[$i]="${pid[$i]} $PID"
-                                fi
-                                i=$i+1;
-							done
-                fi
-			done
-        cat $LOG | grep -i sshd | grep -i "Accepted password for" > /tmp/log-db.txt
-        data=( `ps aux | grep "\[priv\]" | sort -k 72 | awk '{print $2}'`);
-        for PID in "${data[@]}"
-			do
-                cat /tmp/log-db.txt | grep "sshd\[$PID\]" > /tmp/log-db-pid.txt;
-                NUM=`cat /tmp/log-db-pid.txt | wc -l`;
-                USER=`cat /tmp/log-db-pid.txt | awk '{print $9}'`;
-                IP=`cat /tmp/log-db-pid.txt | awk '{print $11}'`;
-                if [ $NUM -eq 1 ]; then
-                        i=0;
-                        for user1 in "${username[@]}"
-							do
-                                if [ "$USER" == "$user1" ]; then
-                                        jumlah[$i]=`expr ${jumlah[$i]} + 1`;
-                                        pid[$i]="${pid[$i]} $PID"
-                                fi
-                                i=$i+1;
-							done
-                fi
-        done
-        j="0";
-        for i in ${!username[*]}
-			do
-                if [ ${jumlah[$i]} -gt $MAX ]; then
-                        date=`date +"%Y-%m-%d %X"`;
-                        echo "$date - ${username[$i]} - ${jumlah[$i]}";
-                        echo "$date - ${username[$i]} - ${jumlah[$i]}" >> /root/log-limit.txt;
-                        kill ${pid[$i]};
-                        pid[$i]="";
-                        j=`expr $j + 1`;
-                fi
-			done
-        if [ $j -gt 0 ]; then
-                if [ $OS -eq 1 ]; then
-                        service ssh restart > /dev/null 2>&1;
-                fi
-                if [ $OS -eq 2 ]; then
-                        service sshd restart > /dev/null 2>&1;
-                fi
-                service dropbear restart > /dev/null 2>&1;
-                j=0;
-		fi
+if [ "$os_type" -eq 1 ]; then
+  service ssh restart > /dev/null 2>&1
+fi
+if [ "$os_type" -eq 2 ]; then
+  service sshd restart > /dev/null 2>&1
+fi
+service dropbear restart > /dev/null 2>&1
+
+if [ -n "${1:-}" ]; then
+  max_allowed=$1
+fi
+
+mapfile -t usernames < <(awk -F: '/\/home\// {print $1}' /etc/passwd)
+for i in "${!usernames[@]}"; do
+  counts[$i]=0
+  pids[$i]=""
+done
+
+mapfile -t dropbear_pids < <(ps aux | awk '/[d]ropbear/ {print $2}')
+for pid in "${dropbear_pids[@]}"; do
+  mapfile -t lines < <(grep -i "dropbear\[$pid\]" "$log_file" | grep -i 'Password auth succeeded')
+  if [ "${#lines[@]}" -eq 1 ]; then
+    user=$(awk '{print $10}' <<< "${lines[0]}" | tr -d "'")
+    for i in "${!usernames[@]}"; do
+      if [ "$user" = "${usernames[$i]}" ]; then
+        counts[$i]=$((counts[$i] + 1))
+        pids[$i]="${pids[$i]} $pid"
+      fi
+    done
+  fi
+done
+
+mapfile -t ssh_pids < <(ps aux | awk '/\[priv\]/ {print $2}')
+for pid in "${ssh_pids[@]}"; do
+  mapfile -t lines < <(grep -i "sshd\[$pid\]" "$log_file" | grep -i 'Accepted password for')
+  if [ "${#lines[@]}" -eq 1 ]; then
+    user=$(awk '{print $9}' <<< "${lines[0]}")
+    for i in "${!usernames[@]}"; do
+      if [ "$user" = "${usernames[$i]}" ]; then
+        counts[$i]=$((counts[$i] + 1))
+        pids[$i]="${pids[$i]} $pid"
+      fi
+    done
+  fi
+done
+
+killed=0
+for i in "${!usernames[@]}"; do
+  if [ "${counts[$i]}" -gt "$max_allowed" ]; then
+    now=$(date +"%Y-%m-%d %X")
+    echo "$now - ${usernames[$i]} - ${counts[$i]}"
+    echo "$now - ${usernames[$i]} - ${counts[$i]}" >> /root/log-limit.txt
+    if [ -n "${pids[$i]}" ]; then
+      kill ${pids[$i]} 2>/dev/null
+    fi
+    pids[$i]=""
+    killed=$((killed + 1))
+  fi
+done
+
+if [ "$killed" -gt 0 ]; then
+  if [ "$os_type" -eq 1 ]; then
+    service ssh restart > /dev/null 2>&1
+  fi
+  if [ "$os_type" -eq 2 ]; then
+    service sshd restart > /dev/null 2>&1
+  fi
+  service dropbear restart > /dev/null 2>&1
+fi

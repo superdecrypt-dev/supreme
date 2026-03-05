@@ -6,8 +6,6 @@ github="raw.githubusercontent.com/chiakge/Linux-NetSpeed/master"
 
 Green_font_prefix="\033[32m"
 Red_font_prefix="\033[31m"
-Green_background_prefix="\033[42;37m"
-Red_background_prefix="\033[41;37m"
 Font_color_suffix="\033[0m"
 Info="${Green_font_prefix}[Info]${Font_color_suffix}"
 Error="${Red_font_prefix}[Error]${Font_color_suffix}"
@@ -125,7 +123,7 @@ startbbrmod(){
 		mkdir bbrmod && cd bbrmod
 		wget -N --no-check-certificate http://${github}/bbr/tcp_tsunami.c
 		echo "obj-m:=tcp_tsunami.o" > Makefile
-		make -C /lib/modules/$(uname -r)/build M=`pwd` modules CC=/usr/bin/gcc
+			make -C /lib/modules/$(uname -r)/build M="$(pwd)" modules CC=/usr/bin/gcc
 		chmod +x ./tcp_tsunami.ko
 		cp -rf ./tcp_tsunami.ko /lib/modules/$(uname -r)/kernel/net/ipv4
 		insmod tcp_tsunami.ko
@@ -143,7 +141,7 @@ startbbrmod(){
 		wget -N --no-check-certificate http://${github}/bbr/tcp_tsunami.c
 		echo "obj-m:=tcp_tsunami.o" > Makefile
 		ln -s /usr/bin/gcc /usr/bin/gcc-4.9
-		make -C /lib/modules/$(uname -r)/build M=`pwd` modules CC=/usr/bin/gcc-4.9
+			make -C /lib/modules/$(uname -r)/build M="$(pwd)" modules CC=/usr/bin/gcc-4.9
 		install tcp_tsunami.ko /lib/modules/$(uname -r)/kernel
 		cp -rf ./tcp_tsunami.ko /lib/modules/$(uname -r)/kernel/net/ipv4
 		depmod -a
@@ -165,7 +163,7 @@ startbbrmod_nanqinlang(){
 		mkdir bbrmod && cd bbrmod
 		wget -N --no-check-certificate https://raw.githubusercontent.com/chiakge/Linux-NetSpeed/master/bbr/centos/tcp_nanqinlang.c
 		echo "obj-m := tcp_nanqinlang.o" > Makefile
-		make -C /lib/modules/$(uname -r)/build M=`pwd` modules CC=/usr/bin/gcc
+			make -C /lib/modules/$(uname -r)/build M="$(pwd)" modules CC=/usr/bin/gcc
 		chmod +x ./tcp_nanqinlang.ko
 		cp -rf ./tcp_nanqinlang.ko /lib/modules/$(uname -r)/kernel/net/ipv4
 		insmod tcp_nanqinlang.ko
@@ -182,7 +180,7 @@ startbbrmod_nanqinlang(){
 		mkdir bbrmod && cd bbrmod
 		wget -N --no-check-certificate https://raw.githubusercontent.com/chiakge/Linux-NetSpeed/master/bbr/tcp_nanqinlang.c
 		echo "obj-m := tcp_nanqinlang.o" > Makefile
-		make -C /lib/modules/$(uname -r)/build M=`pwd` modules CC=/usr/bin/gcc-4.9
+			make -C /lib/modules/$(uname -r)/build M="$(pwd)" modules CC=/usr/bin/gcc-4.9
 		install tcp_nanqinlang.ko /lib/modules/$(uname -r)/kernel
 		cp -rf ./tcp_nanqinlang.ko /lib/modules/$(uname -r)/kernel/net/ipv4
 		depmod -a
@@ -216,41 +214,37 @@ maxmode=\"1\"">>/appex/etc/config
 #Uninstall all speed up
 remove_all(){
 	rm -rf bbrmod
-	sed -i '/net.core.default_qdisc/d' /etc/sysctl.conf
-    sed -i '/net.ipv4.tcp_congestion_control/d' /etc/sysctl.conf
-    sed -i '/fs.file-max/d' /etc/sysctl.conf
-	sed -i '/net.core.rmem_max/d' /etc/sysctl.conf
-	sed -i '/net.core.wmem_max/d' /etc/sysctl.conf
-	sed -i '/net.core.rmem_default/d' /etc/sysctl.conf
-	sed -i '/net.core.wmem_default/d' /etc/sysctl.conf
-	sed -i '/net.core.netdev_max_backlog/d' /etc/sysctl.conf
-	sed -i '/net.core.somaxconn/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_syncookies/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_tw_reuse/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_tw_recycle/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_fin_timeout/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_keepalive_time/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.ip_local_port_range/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_max_syn_backlog/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_max_tw_buckets/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_rmem/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_wmem/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_mtu_probing/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf
-	sed -i '/fs.inotify.max_user_instances/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_syncookies/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_fin_timeout/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_tw_reuse/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_max_syn_backlog/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.ip_local_port_range/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_max_tw_buckets/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.route.gc_timeout/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_synack_retries/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_syn_retries/d' /etc/sysctl.conf
-	sed -i '/net.core.somaxconn/d' /etc/sysctl.conf
-	sed -i '/net.core.netdev_max_backlog/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_timestamps/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_max_orphans/d' /etc/sysctl.conf
+	for key in \
+		net.core.default_qdisc \
+		net.ipv4.tcp_congestion_control \
+		fs.file-max \
+		net.core.rmem_max \
+		net.core.wmem_max \
+		net.core.rmem_default \
+		net.core.wmem_default \
+		net.core.netdev_max_backlog \
+		net.core.somaxconn \
+		net.ipv4.tcp_syncookies \
+		net.ipv4.tcp_tw_reuse \
+		net.ipv4.tcp_tw_recycle \
+		net.ipv4.tcp_fin_timeout \
+		net.ipv4.tcp_keepalive_time \
+		net.ipv4.ip_local_port_range \
+		net.ipv4.tcp_max_syn_backlog \
+		net.ipv4.tcp_max_tw_buckets \
+		net.ipv4.tcp_rmem \
+		net.ipv4.tcp_wmem \
+		net.ipv4.tcp_mtu_probing \
+		net.ipv4.ip_forward \
+		fs.inotify.max_user_instances \
+		net.ipv4.route.gc_timeout \
+		net.ipv4.tcp_synack_retries \
+		net.ipv4.tcp_syn_retries \
+		net.ipv4.tcp_timestamps \
+		net.ipv4.tcp_max_orphans
+	do
+		sed -i "/${key}/d" /etc/sysctl.conf
+	done
 	if [[ -e /appex/bin/lotServer.sh ]]; then
 		bash <(wget --no-check-certificate -qO- https://github.com/MoeClub/lotServer/raw/master/Install.sh) uninstall
 	fi
@@ -309,7 +303,7 @@ net.ipv4.ip_forward = 1">>/etc/sysctl.conf
 #Update script
 Update_Shell(){
 	echo -e "The current version is [ ${sh_ver} ], start checking the latest version..."
-	sh_new_ver=$(wget --no-check-certificate -qO- "http://${github}/tcp.sh"|grep 'sh_ver="'|awk -F "=" '{print $NF}'|sed 's/\"//g'|head -1)
+	sh_new_ver=$(wget --no-check-certificate -qO- "http://${github}/tcp.sh" | awk -F'"' '/sh_ver=/{print $2; exit}')
 	[[ -z ${sh_new_ver} ]] && echo -e "${Error} Failed to detect the latest version!" && start_menu
 	if [[ ${sh_new_ver} != ${sh_ver} ]]; then
 		echo -e "Found a new version [ ${sh_new_ver} ], do you want to update? [Y/n]"
@@ -353,7 +347,7 @@ ${Green_font_prefix}11.${Font_color_suffix} Exit script
 	if [[ ${kernel_status} == "noinstall" ]]; then
 		echo -e "Current status: ${Green_font_prefix}Not installed${Font_color_suffix} Speed ​​up the kernel ${Red_font_prefix}Please install the kernel first${Font_color_suffix}"
 	else
-		echo -e "Current status: ${Green_font_prefix}Installed${Font_color_suffix} ${_font_prefix}${kernel_status}${Font_color_suffix} Speed ​​up the kernel, ${Green_font_prefix}${run_status}${Font_color_suffix}"
+		echo -e "Current status: ${Green_font_prefix}Installed${Font_color_suffix} ${Green_font_prefix}${kernel_status}${Font_color_suffix} Speed ​​up the kernel, ${Green_font_prefix}${run_status}${Font_color_suffix}"
 		
 	fi
 echo
@@ -408,25 +402,25 @@ esac
 #Remove redundant cores
 detele_kernel(){
 	if [[ "${release}" == "centos" ]]; then
-		rpm_total=`rpm -qa | grep kernel | grep -v "${kernel_version}" | grep -v "noarch" | wc -l`
+		rpm_total=$(rpm -qa | grep kernel | grep -v "${kernel_version}" | grep -v "noarch" | wc -l)
 		if [ "${rpm_total}" > "1" ]; then
 			echo -e "${rpm_total} remaining cores are detected, start uninstalling..."
 			for((integer = 1; integer <= ${rpm_total}; integer++)); do
-				rpm_del=`rpm -qa | grep kernel | grep -v "${kernel_version}" | grep -v "noarch" | head -${integer}`
+				rpm_del=$(rpm -qa | grep kernel | grep -v "${kernel_version}" | grep -v "noarch" | head -"${integer}")
 				echo -e "Start uninstalling the ${rpm_del} kernel..."
 				rpm --nodeps -e ${rpm_del}
 				echo -e "Uninstall ${rpm_del} The kernel has been uninstalled, continue..."
 			done
-			echo --nodeps -e "After the kernel has been unloaded, continue..."
+			echo -e "After the kernel has been unloaded, continue..."
 		else
 			echo -e "Incorrect number of cores detected, please check!" && exit 1
 		fi
 	elif [[ "${release}" == "debian" || "${release}" == "ubuntu" ]]; then
-		deb_total=`dpkg -l | grep linux-image | awk '{print $2}' | grep -v "${kernel_version}" | wc -l`
+		deb_total=$(dpkg -l | grep linux-image | awk '{print $2}' | grep -v "${kernel_version}" | wc -l)
 		if [ "${deb_total}" > "1" ]; then
 			echo -e "${deb_total} remaining cores are detected, uninstall..."
 			for((integer = 1; integer <= ${deb_total}; integer++)); do
-				deb_del=`dpkg -l|grep linux-image | awk '{print $2}' | grep -v "${kernel_version}" | head -${integer}`
+				deb_del=$(dpkg -l | grep linux-image | awk '{print $2}' | grep -v "${kernel_version}" | head -"${integer}")
 				echo -e "Start uninstalling the ${deb_del} kernel..."
 				apt-get purge -y ${deb_del}
 				echo -e "Uninstall ${deb_del} The kernel has been uninstalled, continue..."
@@ -469,17 +463,17 @@ BBR_grub(){
 check_sys(){
 	if [[ -f /etc/redhat-release ]]; then
 		release="centos"
-	elif cat /etc/issue | grep -q -E -i "debian"; then
+	elif grep -q -E -i "debian" /etc/issue; then
 		release="debian"
-	elif cat /etc/issue | grep -q -E -i "ubuntu"; then
+	elif grep -q -E -i "ubuntu" /etc/issue; then
 		release="ubuntu"
-	elif cat /etc/issue | grep -q -E -i "centos|red hat|redhat"; then
+	elif grep -q -E -i "centos|red hat|redhat" /etc/issue; then
 		release="centos"
-	elif cat /proc/version | grep -q -E -i "debian"; then
+	elif grep -q -E -i "debian" /proc/version; then
 		release="debian"
-	elif cat /proc/version | grep -q -E -i "ubuntu"; then
+	elif grep -q -E -i "ubuntu" /proc/version; then
 		release="ubuntu"
-	elif cat /proc/version | grep -q -E -i "centos|red hat|redhat"; then
+	elif grep -q -E -i "centos|red hat|redhat" /proc/version; then
 		release="centos"
     fi
 }
@@ -487,11 +481,11 @@ check_sys(){
 #Check Linux version
 check_version(){
 	if [[ -s /etc/redhat-release ]]; then
-		version=`grep -oE  "[0-9.]+" /etc/redhat-release | cut -d . -f 1`
+		version=$(grep -oE  "[0-9.]+" /etc/redhat-release | cut -d . -f 1)
 	else
-		version=`grep -oE  "[0-9.]+" /etc/issue | cut -d . -f 1`
+		version=$(grep -oE  "[0-9.]+" /etc/issue | cut -d . -f 1)
 	fi
-	bit=`uname -m`
+	bit=$(uname -m)
 	if [[ ${bit} = "x86_64" ]]; then
 		bit="x64"
 	else
@@ -600,13 +594,15 @@ check_sys_Lotsever(){
 }
 
 check_status(){
-	kernel_version=`uname -r | awk -F "-" '{print $1}'`
-	kernel_version_full=`uname -r`
+	kernel_version=$(uname -r | awk -F "-" '{print $1}')
+	kernel_version_full=$(uname -r)
+	kernel_major=$(echo "${kernel_version}" | awk -F'.' '{print $1}')
+	kernel_minor=$(echo "${kernel_version}" | awk -F'.' '{print $2}')
 	if [[ ${kernel_version_full} = "4.14.129-bbrplus" ]]; then
 		kernel_status="BBRplus"
 	elif [[ ${kernel_version} = "3.10.0" || ${kernel_version} = "3.16.0" || ${kernel_version} = "3.2.0" || ${kernel_version} = "4.4.0" || ${kernel_version} = "3.13.0"  || ${kernel_version} = "2.6.32" || ${kernel_version} = "4.9.0" ]]; then
 		kernel_status="Lotserver"
-	elif [[ `echo ${kernel_version} | awk -F'.' '{print $1}'` == "4" ]] && [[ `echo ${kernel_version} | awk -F'.' '{print $2}'` -ge 9 ]] || [[ `echo ${kernel_version} | awk -F'.' '{print $1}'` == "5" ]]; then
+	elif [[ "${kernel_major}" == "4" ]] && [[ "${kernel_minor}" -ge 9 ]] || [[ "${kernel_major}" == "5" ]]; then
 		kernel_status="BBR"
 	else 
 		kernel_status="noinstall"
@@ -614,7 +610,7 @@ check_status(){
 
 	if [[ ${kernel_status} == "Lotserver" ]]; then
 		if [[ -e /appex/bin/lotServer.sh ]]; then
-			run_status=`bash /appex/bin/lotServer.sh status | grep "LotServer" | awk  '{print $3}'`
+			run_status=$(bash /appex/bin/lotServer.sh status | awk '/LotServer/ {print $3; exit}')
 			if [[ ${run_status} = "running!" ]]; then
 				run_status="Successfully started"
 			else 
@@ -624,23 +620,23 @@ check_status(){
 			run_status="No acceleration module installed"
 		fi
 	elif [[ ${kernel_status} == "BBR" ]]; then
-		run_status=`grep "net.ipv4.tcp_congestion_control" /etc/sysctl.conf | awk -F "=" '{print $2}'`
+		run_status=$(awk -F "=" '/net.ipv4.tcp_congestion_control/ {gsub(/[[:space:]]/, "", $2); print $2; exit}' /etc/sysctl.conf)
 		if [[ ${run_status} == "bbr" ]]; then
-			run_status=`lsmod | grep "bbr" | awk '{print $1}'`
+			run_status=$(lsmod | awk '/bbr/ {print $1; exit}')
 			if [[ ${run_status} == "tcp_bbr" ]]; then
 				run_status="BBR started successfully"
 			else 
 				run_status="BBR failed to start"
 			fi
 		elif [[ ${run_status} == "tsunami" ]]; then
-			run_status=`lsmod | grep "tsunami" | awk '{print $1}'`
+			run_status=$(lsmod | awk '/tsunami/ {print $1; exit}')
 			if [[ ${run_status} == "tcp_tsunami" ]]; then
 				run_status="BBR Magic Revamp launched successfully"
 			else 
 				run_status="BBR Magic Revamp failed to start"
 			fi
 		elif [[ ${run_status} == "nanqinlang" ]]; then
-			run_status=`lsmod | grep "nanqinlang" | awk '{print $1}'`
+			run_status=$(lsmod | awk '/nanqinlang/ {print $1; exit}')
 			if [[ ${run_status} == "tcp_nanqinlang" ]]; then
 				run_status="Violent BBR Magic Revamp launched successfully"
 			else 
@@ -650,9 +646,9 @@ check_status(){
 			run_status="No acceleration module installed"
 		fi
 	elif [[ ${kernel_status} == "BBRplus" ]]; then
-		run_status=`grep "net.ipv4.tcp_congestion_control" /etc/sysctl.conf | awk -F "=" '{print $2}'`
+		run_status=$(awk -F "=" '/net.ipv4.tcp_congestion_control/ {gsub(/[[:space:]]/, "", $2); print $2; exit}' /etc/sysctl.conf)
 		if [[ ${run_status} == "bbrplus" ]]; then
-			run_status=`lsmod | grep "bbrplus" | awk '{print $1}'`
+			run_status=$(lsmod | awk '/bbrplus/ {print $1; exit}')
 			if [[ ${run_status} == "tcp_bbrplus" ]]; then
 				run_status="BBRplus started successfully"
 			else 

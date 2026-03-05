@@ -1,26 +1,5 @@
 #!/bin/bash
-MYIP=$(wget -qO- ipinfo.io/ip);
-echo "Checking VPS"
-CEKEXPIRED () {
-    today=$(date -d +1day +%Y-%m-%d)
-    Exp1=$(curl -sS https://raw.githubusercontent.com/nanotechid/supreme/aio/permission/ip | grep $MYIP | awk '{print $3}')
-    if [[ $today < $Exp1 ]]; then
-    echo -e "\e[32mSTATUS SCRIPT AKTIF...\e[0m"
-    else
-    echo -e "\e[31mSCRIPT ANDA EXPIRED!\e[0m";
-    
-    exit 0
-fi
-}
-IZIN=$(curl -sS https://raw.githubusercontent.com/nanotechid/supreme/aio/permission/ip | awk '{print $4}' | grep $MYIP)
-if [ $MYIP = $IZIN ]; then
-echo -e "\e[32mPermission Accepted...\e[0m"
-CEKEXPIRED
-else
-echo -e "\e[31mPermission Denied!\e[0m";
 
-exit 0
-fi
 clear
 echo -e "\e[33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 echo -e "\E[0;100;33m       • VMESS MENU •         \E[0m"
@@ -41,12 +20,12 @@ echo -e ""
 read -p " Select menu :  "  opt
 echo -e ""
 case $opt in
-1) clear ; add-ws ; exit ;;
-2) clear ; trialvmess ; exit ;;
-3) clear ; renew-ws ; exit ;;
-4) clear ; del-ws ; exit ;;
-5) clear ; cek-ws ; exit ;;
-0) clear ; menu ; exit ;;
+1) clear ; add-ws ;;
+2) clear ; trialvmess ;;
+3) clear ; renew-ws ;;
+4) clear ; del-ws ;;
+5) clear ; cek-ws ;;
+0) clear ; menu ;;
 x) exit ;;
-*) echo "Anda salah tekan " ; sleep 1 ; m-sshovpn ;;
+*) echo "Anda salah tekan " ; sleep 1 ; m-vmess ;;
 esac
