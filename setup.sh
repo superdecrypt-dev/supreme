@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -o errexit
 set -o pipefail
 
 clear
@@ -39,7 +40,7 @@ fi
 
 localip=$(hostname -I | awk '{print $1}')
 hst=$(hostname)
-dart=$(grep -w "$hst" /etc/hosts | awk '{print $2}')
+dart=$(grep -w "$hst" /etc/hosts | awk '{print $2}' || true)
 if [[ "$hst" != "$dart" ]]; then
   echo "$localip $hst" >> /etc/hosts
 fi
@@ -56,7 +57,7 @@ sleep 0.5
 
 kernel_rel=$(uname -r)
 required_pkg="linux-headers-$kernel_rel"
-pkg_ok=$(dpkg-query -W --showformat='${Status}\n' "$required_pkg" 2>/dev/null | grep "install ok installed")
+pkg_ok=$(dpkg-query -W --showformat='${Status}\n' "$required_pkg" 2>/dev/null | grep "install ok installed" || true)
 echo "Checking for $required_pkg: $pkg_ok"
 
 if [ -z "$pkg_ok" ]; then

@@ -1,6 +1,8 @@
 #!/bin/bash
 #
 # ==================================================
+set -o errexit
+set -o pipefail
 
 # etc
 apt install netfilter-persistent -y

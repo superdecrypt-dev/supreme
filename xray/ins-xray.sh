@@ -1,8 +1,15 @@
 #!/bin/bash
+set -o errexit
+set -o pipefail
+
 green='\e[0;32m'
 yell='\e[1;33m'
 NC='\e[0m'
 RAW_BASE_URL="https://raw.githubusercontent.com/superdecrypt-dev/supreme/main"
+XRAY_INSTALL_COMMIT="e741a4f56d368afbb9e5be3361b40c4552d3710d"
+ACME_SH_COMMIT="f39d066ced0271d87790dc426556c1e02a88c91b"
+XRAY_INSTALL_URL="https://raw.githubusercontent.com/XTLS/Xray-install/${XRAY_INSTALL_COMMIT}/install-release.sh"
+ACME_SH_URL="https://raw.githubusercontent.com/acmesh-official/acme.sh/${ACME_SH_COMMIT}/acme.sh"
 
 download_usr_bin() {
   local bin_name="$1"
@@ -13,6 +20,19 @@ download_usr_bin() {
     exit 1
   fi
   chmod +x "/usr/bin/${bin_name}"
+}
+
+download_file_or_fail() {
+  local url="$1"
+  local dest="$2"
+  if ! curl -fsSL "$url" -o "$dest"; then
+    echo -e "[ ${yell}ERROR${NC} ] Failed to download ${url}"
+    exit 1
+  fi
+  if [ ! -s "$dest" ]; then
+    echo -e "[ ${yell}ERROR${NC} ] Downloaded file is empty: ${dest}"
+    exit 1
+  fi
 }
 
 echo -e "
@@ -30,13 +50,13 @@ echo -e "[ ${green}INFO${NC} ] Checking... "
 apt install iptables iptables-persistent -y
 sleep 0.5
 echo -e "[ ${green}INFO$NC ] Setting time service"
-timedatectl set-ntp true
-timedatectl set-timezone Asia/Jakarta
+timedatectl set-ntp true || true
+timedatectl set-timezone Asia/Jakarta || true
 sleep 0.5
 echo -e "[ ${green}INFO$NC ] Installing dependencies"
 apt clean all && apt update
 apt install curl socat xz-utils wget apt-transport-https gnupg gnupg2 gnupg1 dnsutils lsb-release cron bash-completion ntpdate chrony zip pwgen openssl netcat -y
-ntpdate pool.ntp.org
+ntpdate pool.ntp.org || true
 for chrony_service in chronyd chrony; do
   if systemctl list-unit-files | awk '{print $1}' | grep -qx "${chrony_service}.service"; then
     echo -e "[ ${green}INFO$NC ] Enable ${chrony_service}"
@@ -47,8 +67,8 @@ for chrony_service in chronyd chrony; do
 done
 sleep 0.5
 echo -e "[ ${green}INFO$NC ] Setting chrony tracking"
-chronyc sourcestats -v
-chronyc tracking -v
+chronyc sourcestats -v || true
+chronyc tracking -v || true
 
 
 # install xray
@@ -64,15 +84,15 @@ touch /var/log/xray/error.log
 touch /var/log/xray/access2.log
 touch /var/log/xray/error2.log
 # / / Ambil Xray Core Version Terbaru
-bash -c "$(curl -fsSL https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data
+xray_installer="$(mktemp)"
+download_file_or_fail "$XRAY_INSTALL_URL" "$xray_installer"
+bash "$xray_installer" @ install -u www-data
+rm -f "$xray_installer"
 
 ## crt xray
-systemctl stop nginx
+systemctl stop nginx || true
 mkdir -p /root/.acme.sh
-if ! curl -fsSL https://acme-install.netlify.app/acme.sh -o /root/.acme.sh/acme.sh; then
-  echo -e "[ ${yell}ERROR${NC} ] Failed to download acme.sh installer"
-  exit 1
-fi
+download_file_or_fail "$ACME_SH_URL" /root/.acme.sh/acme.sh
 chmod +x /root/.acme.sh/acme.sh
 /root/.acme.sh/acme.sh --upgrade --auto-upgrade
 /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt
@@ -87,7 +107,7 @@ echo -n '#!/bin/bash
 /etc/init.d/nginx status
 ' > /usr/local/bin/ssl_renew.sh
 chmod +x /usr/local/bin/ssl_renew.sh
-if ! grep -q 'ssl_renew.sh' /var/spool/cron/crontabs/root;then (crontab -l;echo "15 03 */3 * * /usr/local/bin/ssl_renew.sh") | crontab;fi
+if ! grep -q 'ssl_renew.sh' /var/spool/cron/crontabs/root;then (crontab -l 2>/dev/null;echo "15 03 */3 * * /usr/local/bin/ssl_renew.sh") | crontab;fi
 
 mkdir -p /home/vps/public_html
 

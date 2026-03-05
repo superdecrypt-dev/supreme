@@ -1,667 +1,218 @@
 #!/usr/bin/env bash
+set -o errexit
+set -o nounset
+set -o pipefail
+
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
-sh_ver="1.3.2"
-github="raw.githubusercontent.com/chiakge/Linux-NetSpeed/master"
 
-Green_font_prefix="\033[32m"
-Red_font_prefix="\033[31m"
-Font_color_suffix="\033[0m"
-Info="${Green_font_prefix}[Info]${Font_color_suffix}"
-Error="${Red_font_prefix}[Error]${Font_color_suffix}"
-Tip="${Green_font_prefix}[Tip]${Font_color_suffix}"
+sh_ver="2.0.0"
 
-#Install BBR kernel
-installbbr(){
-	kernel_version="4.11.8"
-	if [[ "${release}" == "centos" ]]; then
-		rpm --import https://${github}/bbr/${release}/RPM-GPG-KEY-elrepo.org
-		yum install -y https://${github}/bbr/${release}/${version}/${bit}/kernel-ml-${kernel_version}.rpm
-		yum remove -y kernel-headers
-		yum install -y https://${github}/bbr/${release}/${version}/${bit}/kernel-ml-headers-${kernel_version}.rpm
-		yum install -y https://${github}/bbr/${release}/${version}/${bit}/kernel-ml-devel-${kernel_version}.rpm
-	elif [[ "${release}" == "debian" || "${release}" == "ubuntu" ]]; then
-		mkdir bbr && cd bbr
-		wget https://security.debian.org/debian-security/pool/updates/main/o/openssl/libssl1.0.0_1.0.1t-1+deb8u10_amd64.deb
-		wget -N https://${github}/bbr/debian-ubuntu/linux-headers-${kernel_version}-all.deb
-		wget -N https://${github}/bbr/debian-ubuntu/${bit}/linux-headers-${kernel_version}.deb
-		wget -N https://${github}/bbr/debian-ubuntu/${bit}/linux-image-${kernel_version}.deb
-	
-		dpkg -i libssl1.0.0_1.0.1t-1+deb8u10_amd64.deb
-		dpkg -i linux-headers-${kernel_version}-all.deb
-		dpkg -i linux-headers-${kernel_version}.deb
-		dpkg -i linux-image-${kernel_version}.deb
-		cd .. && rm -rf bbr
-	fi
-	detele_kernel
-	BBR_grub
-	echo -e "${Tip} After restarting the VPS, please re-run the script to start${Red_font_prefix}BBR/BBR magic revision${Font_color_suffix}"
-	stty erase '^H' && read -p "You need to restart the VPS before you can start the BBR/BBR magic revision. Do you want to restart now? [Y/n] :" yn
-	[ -z "${yn}" ] && yn="y"
-	if [[ $yn == [Yy] ]]; then
-		echo -e "${Info} VPS restarting..."
-		reboot
-	fi
+GREEN="\033[32m"
+RED="\033[31m"
+YELLOW="\033[33m"
+NC="\033[0m"
+INFO="${GREEN}[Info]${NC}"
+WARN="${YELLOW}[Warn]${NC}"
+ERR="${RED}[Error]${NC}"
+
+safe_clear() {
+  clear >/dev/null 2>&1 || true
 }
 
-#Install BBRplus kernel
-installbbrplus(){
-	kernel_version="4.14.129-bbrplus"
-	if [[ "${release}" == "centos" ]]; then
-		wget -N https://${github}/bbrplus/${release}/${version}/kernel-${kernel_version}.rpm
-		yum install -y kernel-${kernel_version}.rpm
-		rm -f kernel-${kernel_version}.rpm
-		kernel_version="4.14.129_bbrplus" #fix a bug
-	elif [[ "${release}" == "debian" || "${release}" == "ubuntu" ]]; then
-		mkdir bbrplus && cd bbrplus
-		wget -N https://${github}/bbrplus/debian-ubuntu/${bit}/linux-headers-${kernel_version}.deb
-		wget -N https://${github}/bbrplus/debian-ubuntu/${bit}/linux-image-${kernel_version}.deb
-		dpkg -i linux-headers-${kernel_version}.deb
-		dpkg -i linux-image-${kernel_version}.deb
-		cd .. && rm -rf bbrplus
-	fi
-	detele_kernel
-	BBR_grub
-	echo -e "${Tip} After restarting the VPS, please re-run the script to start${Red_font_prefix}BBRplus${Font_color_suffix}"
-	stty erase '^H' && read -p "You need to restart the VPS before you can start BBRplus. Do you want to restart it now? [Y/n] :" yn
-	[ -z "${yn}" ] && yn="y"
-	if [[ $yn == [Yy] ]]; then
-		echo -e "${Info} VPS restarting..."
-		reboot
-	fi
+legacy_feature_disabled() {
+  local feature="$1"
+  safe_clear
+  echo -e "${WARN} ${feature} is legacy and has been disabled for runtime safety."
+  echo -e "${INFO} Use option 4/7/9/10 for supported tuning."
+  read -r -p "Press Enter to return to menu..." _
+  start_menu
 }
 
-#Install Lotserver kernel
-installlot(){
-	if [[ "${release}" == "centos" ]]; then
-		rpm --import https://${github}/lotserver/${release}/RPM-GPG-KEY-elrepo.org
-		yum remove -y kernel-firmware
-		yum install -y https://${github}/lotserver/${release}/${version}/${bit}/kernel-firmware-${kernel_version}.rpm
-		yum install -y https://${github}/lotserver/${release}/${version}/${bit}/kernel-${kernel_version}.rpm
-		yum remove -y kernel-headers
-		yum install -y https://${github}/lotserver/${release}/${version}/${bit}/kernel-headers-${kernel_version}.rpm
-		yum install -y https://${github}/lotserver/${release}/${version}/${bit}/kernel-devel-${kernel_version}.rpm
-	elif [[ "${release}" == "ubuntu" ]]; then
-		bash <(wget -qO- "https://${github}/Debian_Kernel.sh")
-	elif [[ "${release}" == "debian" ]]; then
-		bash <(wget -qO- "https://${github}/Debian_Kernel.sh")
-	fi
-	detele_kernel
-	BBR_grub
-	echo -e "${Tip} After restarting the VPS, please re-run the script to start${Red_font_prefix}Lotserver${Font_color_suffix}"
-	stty erase '^H' && read -p "You need to restart the VPS before you can start Lotserver. Do you want to restart it now? [Y/n] :" yn
-	[ -z "${yn}" ] && yn="y"
-	if [[ $yn == [Yy] ]]; then
-		echo -e "${Info} VPS restarting..."
-		reboot
-	fi
+set_sysctl_key() {
+  local key="$1"
+  local value="$2"
+
+  sed -i "/^${key}[[:space:]]*=.*/d" /etc/sysctl.conf
+  echo "${key} = ${value}" >> /etc/sysctl.conf
 }
 
-#Enable BBR
-startbbr(){
-	remove_all
-	echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
-	echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
-	sysctl -p
-	echo -e "${Info} BBR started successfully!"
+remove_accel_settings() {
+  local keys=(
+    "net.core.default_qdisc"
+    "net.ipv4.tcp_congestion_control"
+    "fs.file-max"
+    "net.core.rmem_max"
+    "net.core.wmem_max"
+    "net.core.rmem_default"
+    "net.core.wmem_default"
+    "net.core.netdev_max_backlog"
+    "net.core.somaxconn"
+    "net.ipv4.tcp_syncookies"
+    "net.ipv4.tcp_tw_reuse"
+    "net.ipv4.tcp_tw_recycle"
+    "net.ipv4.tcp_fin_timeout"
+    "net.ipv4.tcp_keepalive_time"
+    "net.ipv4.ip_local_port_range"
+    "net.ipv4.tcp_max_syn_backlog"
+    "net.ipv4.tcp_max_tw_buckets"
+    "net.ipv4.tcp_rmem"
+    "net.ipv4.tcp_wmem"
+    "net.ipv4.tcp_mtu_probing"
+    "net.ipv4.ip_forward"
+    "fs.inotify.max_user_instances"
+    "net.ipv4.route.gc_timeout"
+    "net.ipv4.tcp_synack_retries"
+    "net.ipv4.tcp_syn_retries"
+    "net.ipv4.tcp_timestamps"
+    "net.ipv4.tcp_max_orphans"
+  )
+
+  for key in "${keys[@]}"; do
+    sed -i "/^${key}[[:space:]]*=.*/d" /etc/sysctl.conf
+  done
+
+  sysctl -p >/dev/null 2>&1 || true
+  echo -e "${INFO} Acceleration tuning removed."
 }
 
-#Enable BBRplus
-startbbrplus(){
-	remove_all
-	echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
-	echo "net.ipv4.tcp_congestion_control=bbrplus" >> /etc/sysctl.conf
-	sysctl -p
-	echo -e "${Info} BBRplus started successfully!"
+apply_tcp_accel() {
+  local algo="$1"
+  remove_accel_settings
+  set_sysctl_key "net.core.default_qdisc" "fq"
+  set_sysctl_key "net.ipv4.tcp_congestion_control" "$algo"
+
+  if ! sysctl -p >/dev/null 2>&1; then
+    echo -e "${ERR} Failed to apply sysctl settings for ${algo}."
+    return 1
+  fi
+
+  local active_algo
+  active_algo=$(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null || true)
+  if [ "$active_algo" != "$algo" ]; then
+    echo -e "${WARN} ${algo} is not active on this kernel. Current: ${active_algo:-unknown}"
+    return 1
+  fi
+
+  echo -e "${INFO} ${algo} acceleration is active."
+  return 0
 }
 
-#Compile and enable BBR magic change
-startbbrmod(){
-	remove_all
-	if [[ "${release}" == "centos" ]]; then
-		yum install -y make gcc
-		mkdir bbrmod && cd bbrmod
-		wget -N https://${github}/bbr/tcp_tsunami.c
-		echo "obj-m:=tcp_tsunami.o" > Makefile
-			make -C /lib/modules/$(uname -r)/build M="$(pwd)" modules CC=/usr/bin/gcc
-		chmod +x ./tcp_tsunami.ko
-		cp -rf ./tcp_tsunami.ko /lib/modules/$(uname -r)/kernel/net/ipv4
-		insmod tcp_tsunami.ko
-		depmod -a
-	else
-		apt-get update
-		if [[ "${release}" == "ubuntu" && "${version}" = "14" ]]; then
-			apt-get -y install build-essential
-			apt-get -y install software-properties-common
-			add-apt-repository ppa:ubuntu-toolchain-r/test -y
-			apt-get update
-		fi
-		apt-get -y install make gcc
-		mkdir bbrmod && cd bbrmod
-		wget -N https://${github}/bbr/tcp_tsunami.c
-		echo "obj-m:=tcp_tsunami.o" > Makefile
-		ln -s /usr/bin/gcc /usr/bin/gcc-4.9
-			make -C /lib/modules/$(uname -r)/build M="$(pwd)" modules CC=/usr/bin/gcc-4.9
-		install tcp_tsunami.ko /lib/modules/$(uname -r)/kernel
-		cp -rf ./tcp_tsunami.ko /lib/modules/$(uname -r)/kernel/net/ipv4
-		depmod -a
-	fi
-	
+optimizing_system() {
+  remove_accel_settings
 
-	echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
-	echo "net.ipv4.tcp_congestion_control=tsunami" >> /etc/sysctl.conf
-	sysctl -p
-    cd .. && rm -rf bbrmod
-	echo -e "${Info} The Magic Revamped BBR was launched successfully!"
+  set_sysctl_key "fs.file-max" "1000000"
+  set_sysctl_key "fs.inotify.max_user_instances" "8192"
+  set_sysctl_key "net.ipv4.tcp_syncookies" "1"
+  set_sysctl_key "net.ipv4.tcp_fin_timeout" "30"
+  set_sysctl_key "net.ipv4.tcp_tw_reuse" "1"
+  set_sysctl_key "net.ipv4.ip_local_port_range" "1024 65000"
+  set_sysctl_key "net.ipv4.tcp_max_syn_backlog" "16384"
+  set_sysctl_key "net.ipv4.tcp_max_tw_buckets" "6000"
+  set_sysctl_key "net.ipv4.route.gc_timeout" "100"
+  set_sysctl_key "net.ipv4.tcp_syn_retries" "1"
+  set_sysctl_key "net.ipv4.tcp_synack_retries" "1"
+  set_sysctl_key "net.core.somaxconn" "32768"
+  set_sysctl_key "net.core.netdev_max_backlog" "32768"
+  set_sysctl_key "net.ipv4.tcp_timestamps" "0"
+  set_sysctl_key "net.ipv4.tcp_max_orphans" "32768"
+  set_sysctl_key "net.ipv4.ip_forward" "1"
+
+  if ! sysctl -p >/dev/null 2>&1; then
+    echo -e "${ERR} Failed to apply optimization settings."
+    return 1
+  fi
+
+  cat > /etc/security/limits.conf <<'LIMITS'
+*               soft    nofile           1000000
+*               hard    nofile           1000000
+LIMITS
+
+  if ! grep -qxF "ulimit -SHn 1000000" /etc/profile; then
+    echo "ulimit -SHn 1000000" >> /etc/profile
+  fi
+
+  echo -e "${INFO} System optimization applied."
 }
 
-#Compile and enable BBR magic change
-startbbrmod_nanqinlang(){
-	remove_all
-	if [[ "${release}" == "centos" ]]; then
-		yum install -y make gcc
-		mkdir bbrmod && cd bbrmod
-		wget -N https://raw.githubusercontent.com/chiakge/Linux-NetSpeed/master/bbr/centos/tcp_nanqinlang.c
-		echo "obj-m := tcp_nanqinlang.o" > Makefile
-			make -C /lib/modules/$(uname -r)/build M="$(pwd)" modules CC=/usr/bin/gcc
-		chmod +x ./tcp_nanqinlang.ko
-		cp -rf ./tcp_nanqinlang.ko /lib/modules/$(uname -r)/kernel/net/ipv4
-		insmod tcp_nanqinlang.ko
-		depmod -a
-	else
-		apt-get update
-		if [[ "${release}" == "ubuntu" && "${version}" = "14" ]]; then
-			apt-get -y install build-essential
-			apt-get -y install software-properties-common
-			add-apt-repository ppa:ubuntu-toolchain-r/test -y
-			apt-get update
-		fi
-		apt-get -y install make gcc-4.9
-		mkdir bbrmod && cd bbrmod
-		wget -N https://raw.githubusercontent.com/chiakge/Linux-NetSpeed/master/bbr/tcp_nanqinlang.c
-		echo "obj-m := tcp_nanqinlang.o" > Makefile
-			make -C /lib/modules/$(uname -r)/build M="$(pwd)" modules CC=/usr/bin/gcc-4.9
-		install tcp_nanqinlang.ko /lib/modules/$(uname -r)/kernel
-		cp -rf ./tcp_nanqinlang.ko /lib/modules/$(uname -r)/kernel/net/ipv4
-		depmod -a
-	fi
-	
+check_status() {
+  local kernel
+  kernel=$(uname -r)
+  local algo
+  algo=$(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null || echo "unknown")
 
-	echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
-	echo "net.ipv4.tcp_congestion_control=nanqinlang" >> /etc/sysctl.conf
-	sysctl -p
-	echo -e "${Info} The Magic Revamped BBR was launched successfully!"
+  echo -e "Kernel : ${kernel}"
+  echo -e "TCP CC : ${algo}"
 }
 
-#Enable Lotserver
-startlotserver(){
-	remove_all
-	if [[ "${release}" == "centos" ]]; then
-		yum install ethtool
-	else
-		apt-get update
-		apt-get install ethtool
-	fi
-	bash <(wget -qO- https://raw.githubusercontent.com/chiakge/lotServer/master/Install.sh) install
-	sed -i '/advinacc/d' /appex/etc/config
-	sed -i '/maxmode/d' /appex/etc/config
-	echo -e "advinacc=\"1\"
-maxmode=\"1\"">>/appex/etc/config
-	/appex/bin/lotServer.sh restart
-	start_menu
-}
+start_menu() {
+  safe_clear
+  echo -e "TCP tuning manager ${GREEN}[v${sh_ver}]${NC}"
+  echo
+  echo -e "${YELLOW}0.${NC} Update script (disabled legacy)"
+  echo -e "${YELLOW}1.${NC} Install BBR kernel (disabled legacy)"
+  echo -e "${YELLOW}2.${NC} Install BBRplus kernel (disabled legacy)"
+  echo -e "${YELLOW}3.${NC} Install Lotserver kernel (disabled legacy)"
+  echo -e "${GREEN}4.${NC} Enable BBR acceleration"
+  echo -e "${YELLOW}5.${NC} Enable BBR magic (disabled legacy)"
+  echo -e "${YELLOW}6.${NC} Enable BBR nanqinlang (disabled legacy)"
+  echo -e "${GREEN}7.${NC} Enable BBRplus acceleration"
+  echo -e "${YELLOW}8.${NC} Enable Lotserver acceleration (disabled legacy)"
+  echo -e "${GREEN}9.${NC} Remove acceleration tuning"
+  echo -e "${GREEN}10.${NC} Apply system network optimization"
+  echo -e "${GREEN}11.${NC} Exit"
+  echo
+  check_status
+  echo
 
-#Uninstall all speed up
-remove_all(){
-	rm -rf bbrmod
-	for key in \
-		net.core.default_qdisc \
-		net.ipv4.tcp_congestion_control \
-		fs.file-max \
-		net.core.rmem_max \
-		net.core.wmem_max \
-		net.core.rmem_default \
-		net.core.wmem_default \
-		net.core.netdev_max_backlog \
-		net.core.somaxconn \
-		net.ipv4.tcp_syncookies \
-		net.ipv4.tcp_tw_reuse \
-		net.ipv4.tcp_tw_recycle \
-		net.ipv4.tcp_fin_timeout \
-		net.ipv4.tcp_keepalive_time \
-		net.ipv4.ip_local_port_range \
-		net.ipv4.tcp_max_syn_backlog \
-		net.ipv4.tcp_max_tw_buckets \
-		net.ipv4.tcp_rmem \
-		net.ipv4.tcp_wmem \
-		net.ipv4.tcp_mtu_probing \
-		net.ipv4.ip_forward \
-		fs.inotify.max_user_instances \
-		net.ipv4.route.gc_timeout \
-		net.ipv4.tcp_synack_retries \
-		net.ipv4.tcp_syn_retries \
-		net.ipv4.tcp_timestamps \
-		net.ipv4.tcp_max_orphans
-	do
-		sed -i "/${key}/d" /etc/sysctl.conf
-	done
-	if [[ -e /appex/bin/lotServer.sh ]]; then
-		bash <(wget -qO- https://github.com/MoeClub/lotServer/raw/master/Install.sh) uninstall
-	fi
-	clear
-	echo -e "${Info} Clear acceleration is complete."
-	sleep 1s
-}
-
-#Optimize system configuration
-optimizing_system(){
-	sed -i '/fs.file-max/d' /etc/sysctl.conf
-	sed -i '/fs.inotify.max_user_instances/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_syncookies/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_fin_timeout/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_tw_reuse/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_max_syn_backlog/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.ip_local_port_range/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_max_tw_buckets/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.route.gc_timeout/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_synack_retries/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_syn_retries/d' /etc/sysctl.conf
-	sed -i '/net.core.somaxconn/d' /etc/sysctl.conf
-	sed -i '/net.core.netdev_max_backlog/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_timestamps/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.tcp_max_orphans/d' /etc/sysctl.conf
-	sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf
-	echo "fs.file-max = 1000000
-fs.inotify.max_user_instances = 8192
-net.ipv4.tcp_syncookies = 1
-net.ipv4.tcp_fin_timeout = 30
-net.ipv4.tcp_tw_reuse = 1
-net.ipv4.ip_local_port_range = 1024 65000
-net.ipv4.tcp_max_syn_backlog = 16384
-net.ipv4.tcp_max_tw_buckets = 6000
-net.ipv4.route.gc_timeout = 100
-net.ipv4.tcp_syn_retries = 1
-net.ipv4.tcp_synack_retries = 1
-net.core.somaxconn = 32768
-net.core.netdev_max_backlog = 32768
-net.ipv4.tcp_timestamps = 0
-net.ipv4.tcp_max_orphans = 32768
-# forward ipv4
-net.ipv4.ip_forward = 1">>/etc/sysctl.conf
-	sysctl -p
-	echo "*               soft    nofile           1000000
-*               hard    nofile          1000000">/etc/security/limits.conf
-	echo "ulimit -SHn 1000000">>/etc/profile
-	read -p "The VPS needs to be restarted for the system optimization configuration to take effect. Do you want to restart now? [Y/n] :" yn
-	[ -z "${yn}" ] && yn="y"
-	if [[ $yn == [Yy] ]]; then
-		echo -e "${Info} VPS restarting..."
-		reboot
-	fi
-}
-
-#Update script
-Update_Shell(){
-	echo -e "The current version is [ ${sh_ver} ], start checking the latest version..."
-	sh_new_ver=$(wget -qO- "https://${github}/tcp.sh" | awk -F'"' '/sh_ver=/{print $2; exit}')
-	[[ -z ${sh_new_ver} ]] && echo -e "${Error} Failed to detect the latest version!" && start_menu
-	if [[ ${sh_new_ver} != ${sh_ver} ]]; then
-		echo -e "Found a new version [ ${sh_new_ver} ], do you want to update? [Y/n]"
-		read -p "(Default: y):" yn
-		[[ -z "${yn}" ]] && yn="y"
-		if [[ ${yn} == [Yy] ]]; then
-			wget -N https://${github}/tcp.sh && chmod +x tcp.sh
-			echo -e "The script has been updated to the latest version [ ${sh_new_ver} ] !"
-		else
-			echo && echo "Cancelled..." && echo
-		fi
-	else
-		echo -e "Currently the latest version [ ${sh_new_ver} ] !"
-		sleep 5s
-	fi
-}
-
-#Start menu
-start_menu(){
-clear
-echo && echo -e "TCP acceleration - Key installation management script ${Red_font_prefix}[v${sh_ver}]${Font_color_suffix}
- 
-${Green_font_prefix}0.${Font_color_suffix} Upgrade script
-———————————————Kernel management———————————————
-${Green_font_prefix}1.${Font_color_suffix} Install BBR/BBR Magic Revised Kernel
-${Green_font_prefix}2.${Font_color_suffix} Install the BBRplus version of the kernel
-${Green_font_prefix}3.${Font_color_suffix} Install Lotserver (Sharp Speed) Kernel
-——————————————Speed ​​up management——————————————
-${Green_font_prefix}4.${Font_color_suffix} Use BBR to accelerate
-${Green_font_prefix}5.${Font_color_suffix} Use BBR Magic Revamp to accelerate
-${Green_font_prefix}6.${Font_color_suffix} Use violent BBR magic revision to accelerate
-${Green_font_prefix}7.${Font_color_suffix} Use BBRplus version to accelerate
-${Green_font_prefix}8.${Font_color_suffix} Use Lotserver (sharp speed) to accelerate
-————————————Miscellaneous Management———————————
-${Green_font_prefix}9.${Font_color_suffix} Uninstall all speed up
-${Green_font_prefix}10.${Font_color_suffix} System configuration optimization
-${Green_font_prefix}11.${Font_color_suffix} Exit script
-———————————————————————————————————————————————" && echo
-
-	check_status
-	if [[ ${kernel_status} == "noinstall" ]]; then
-		echo -e "Current status: ${Green_font_prefix}Not installed${Font_color_suffix} Speed ​​up the kernel ${Red_font_prefix}Please install the kernel first${Font_color_suffix}"
-	else
-		echo -e "Current status: ${Green_font_prefix}Installed${Font_color_suffix} ${Green_font_prefix}${kernel_status}${Font_color_suffix} Speed ​​up the kernel, ${Green_font_prefix}${run_status}${Font_color_suffix}"
-		
-	fi
-echo
-read -p "Please enter the numbers [0-11]: " num
-case "$num" in
-	0)
-	Update_Shell
-	;;
-	1)
-	check_sys_bbr
-	;;
-	2)
-	check_sys_bbrplus
-	;;
-	3)
-	check_sys_Lotsever
-	;;
-	4)
-	startbbr
-	;;
-	5)
-	startbbrmod
-	;;
-	6)
-	startbbrmod_nanqinlang
-	;;
-	7)
-	startbbrplus
-	;;
-	8)
-	startlotserver
-	;;
-	9)
-	remove_all
-	;;
-	10)
-	optimizing_system
-	;;
-	11)
-	exit 1
-	;;
-	*)
-	clear
-	echo -e "${Error} Please enter the correct number [0-11]"
-	sleep 5s
-	start_menu
-	;;
-esac
-}
-#############Kernel management component#############
-
-#Remove redundant cores
-detele_kernel(){
-	if [[ "${release}" == "centos" ]]; then
-		rpm_total=$(rpm -qa | grep kernel | grep -v "${kernel_version}" | grep -v "noarch" | wc -l)
-		if [ "${rpm_total}" > "1" ]; then
-			echo -e "${rpm_total} remaining cores are detected, start uninstalling..."
-			for((integer = 1; integer <= ${rpm_total}; integer++)); do
-				rpm_del=$(rpm -qa | grep kernel | grep -v "${kernel_version}" | grep -v "noarch" | head -"${integer}")
-				echo -e "Start uninstalling the ${rpm_del} kernel..."
-				rpm --nodeps -e ${rpm_del}
-				echo -e "Uninstall ${rpm_del} The kernel has been uninstalled, continue..."
-			done
-			echo -e "After the kernel has been unloaded, continue..."
-		else
-			echo -e "Incorrect number of cores detected, please check!" && exit 1
-		fi
-	elif [[ "${release}" == "debian" || "${release}" == "ubuntu" ]]; then
-		deb_total=$(dpkg -l | grep linux-image | awk '{print $2}' | grep -v "${kernel_version}" | wc -l)
-		if [ "${deb_total}" > "1" ]; then
-			echo -e "${deb_total} remaining cores are detected, uninstall..."
-			for((integer = 1; integer <= ${deb_total}; integer++)); do
-				deb_del=$(dpkg -l | grep linux-image | awk '{print $2}' | grep -v "${kernel_version}" | head -"${integer}")
-				echo -e "Start uninstalling the ${deb_del} kernel..."
-				apt-get purge -y ${deb_del}
-				echo -e "Uninstall ${deb_del} The kernel has been uninstalled, continue..."
-			done
-			echo -e "After the kernel has been unloaded, continue..."
-		else
-			echo -e "Incorrect number of cores detected, please check!" && exit 1
-		fi
-	fi
-}
-
-#Update guide
-BBR_grub(){
-	if [[ "${release}" == "centos" ]]; then
-        if [[ ${version} = "6" ]]; then
-            if [ ! -f "/boot/grub/grub.conf" ]; then
-                echo -e "${Error} /boot/grub/grub.conf cannot be found, please check."
-                exit 1
-            fi
-            sed -i 's/^default=.*/default=0/g' /boot/grub/grub.conf
-        elif [[ ${version} = "7" ]]; then
-            if [ ! -f "/boot/grub2/grub.cfg" ]; then
-                echo -e "${Error} /boot/grub2/grub.cfg cannot be found, please check."
-                exit 1
-            fi
-            grub2-set-default 0
+  read -r -p "Please enter number [0-11]: " num
+  case "$num" in
+    0) legacy_feature_disabled "Script self-update" ;;
+    1) legacy_feature_disabled "Kernel installation (BBR)" ;;
+    2) legacy_feature_disabled "Kernel installation (BBRplus)" ;;
+    3) legacy_feature_disabled "Kernel installation (Lotserver)" ;;
+    4)
+      if apply_tcp_accel "bbr"; then
+        read -r -p "Press Enter to continue..." _
+      else
+        read -r -p "Press Enter to continue..." _
+      fi
+      start_menu
+      ;;
+    5) legacy_feature_disabled "BBR magic acceleration" ;;
+    6) legacy_feature_disabled "BBR nanqinlang acceleration" ;;
+    7)
+      if apply_tcp_accel "bbrplus"; then
+        read -r -p "Press Enter to continue..." _
+      else
+        read -r -p "Press Enter to continue..." _
+      fi
+      start_menu
+      ;;
+    8) legacy_feature_disabled "Lotserver acceleration" ;;
+    9)
+      remove_accel_settings
+      read -r -p "Press Enter to continue..." _
+      start_menu
+      ;;
+    10)
+      if optimizing_system; then
+        read -r -p "Reboot recommended. Reboot now? [y/N]: " yn
+        if [[ "$yn" == "y" || "$yn" == "Y" ]]; then
+          reboot
         fi
-    elif [[ "${release}" == "debian" || "${release}" == "ubuntu" ]]; then
-        /usr/sbin/update-grub
-    fi
+      fi
+      start_menu
+      ;;
+    11)
+      exit 0
+      ;;
+    *)
+      echo -e "${ERR} Invalid selection"
+      sleep 1
+      start_menu
+      ;;
+  esac
 }
 
-#############Kernel management component#############
-
-
-
-#############System detection components#############
-
-#Check the system
-check_sys(){
-	if [[ -f /etc/redhat-release ]]; then
-		release="centos"
-	elif grep -q -E -i "debian" /etc/issue; then
-		release="debian"
-	elif grep -q -E -i "ubuntu" /etc/issue; then
-		release="ubuntu"
-	elif grep -q -E -i "centos|red hat|redhat" /etc/issue; then
-		release="centos"
-	elif grep -q -E -i "debian" /proc/version; then
-		release="debian"
-	elif grep -q -E -i "ubuntu" /proc/version; then
-		release="ubuntu"
-	elif grep -q -E -i "centos|red hat|redhat" /proc/version; then
-		release="centos"
-    fi
-}
-
-#Check Linux version
-check_version(){
-	if [[ -s /etc/redhat-release ]]; then
-		version=$(grep -oE  "[0-9.]+" /etc/redhat-release | cut -d . -f 1)
-	else
-		version=$(grep -oE  "[0-9.]+" /etc/issue | cut -d . -f 1)
-	fi
-	bit=$(uname -m)
-	if [[ ${bit} = "x86_64" ]]; then
-		bit="x64"
-	else
-		bit="x32"
-	fi
-}
-
-#Check the system requirements for installing bbr
-check_sys_bbr(){
-	check_version
-	if [[ "${release}" == "centos" ]]; then
-		if [[ ${version} -ge "6" ]]; then
-			installbbr
-		else
-			echo -e "${Error} The BBR kernel does not support the current system ${release} ${version} ${bit} !" && exit 1
-		fi
-	elif [[ "${release}" == "debian" ]]; then
-		if [[ ${version} -ge "8" ]]; then
-			installbbr
-		else
-			echo -e "${Error} The BBR kernel does not support the current system ${release} ${version} ${bit} !" && exit 1
-		fi
-	elif [[ "${release}" == "ubuntu" ]]; then
-		if [[ ${version} -ge "14" ]]; then
-			installbbr
-		else
-			echo -e "${Error} The BBR kernel does not support the current system ${release} ${version} ${bit} !" && exit 1
-		fi
-	else
-		echo -e "${Error} The BBR kernel does not support the current system ${release} ${version} ${bit} !" && exit 1
-	fi
-}
-
-check_sys_bbrplus(){
-	check_version
-	if [[ "${release}" == "centos" ]]; then
-		if [[ ${version} -ge "6" ]]; then
-			installbbrplus
-		else
-			echo -e "${Error} The BBRplus kernel does not support the current system ${release} ${version} ${bit} !" && exit 1
-		fi
-	elif [[ "${release}" == "debian" ]]; then
-		if [[ ${version} -ge "8" ]]; then
-			installbbrplus
-		else
-			echo -e "${Error} The BBRplus kernel does not support the current system ${release} ${version} ${bit} !" && exit 1
-		fi
-	elif [[ "${release}" == "ubuntu" ]]; then
-		if [[ ${version} -ge "14" ]]; then
-			installbbrplus
-		else
-			echo -e "${Error} The BBRplus kernel does not support the current system ${release} ${version} ${bit} !" && exit 1
-		fi
-	else
-		echo -e "${Error} The BBRplus kernel does not support the current system ${release} ${version} ${bit} !" && exit 1
-	fi
-}
-
-
-#Check the system requirements for installing Lotsever
-check_sys_Lotsever(){
-	check_version
-	if [[ "${release}" == "centos" ]]; then
-		if [[ ${version} == "6" ]]; then
-			kernel_version="2.6.32-504"
-			installlot
-		elif [[ ${version} == "7" ]]; then
-			yum -y install net-tools
-			kernel_version="3.10.0-327"
-			installlot
-		else
-			echo -e "${Error} Lotsever does not support the current system ${release} ${version} ${bit} !" && exit 1
-		fi
-	elif [[ "${release}" == "debian" ]]; then
-		if [[ ${version} = "7" || ${version} = "8" ]]; then
-			if [[ ${bit} == "x64" ]]; then
-				kernel_version="3.16.0-4"
-				installlot
-			elif [[ ${bit} == "x32" ]]; then
-				kernel_version="3.2.0-4"
-				installlot
-			fi
-		elif [[ ${version} = "9" ]]; then
-			if [[ ${bit} == "x64" ]]; then
-				kernel_version="4.9.0-4"
-				installlot
-			fi
-		else
-			echo -e "${Error} Lotsever does not support the current system ${release} ${version} ${bit} !" && exit 1
-		fi
-	elif [[ "${release}" == "ubuntu" ]]; then
-		if [[ ${version} -ge "12" ]]; then
-			if [[ ${bit} == "x64" ]]; then
-				kernel_version="4.4.0-47"
-				installlot
-			elif [[ ${bit} == "x32" ]]; then
-				kernel_version="3.13.0-29"
-				installlot
-			fi
-		else
-			echo -e "${Error} Lotsever does not support the current system ${release} ${version} ${bit} !" && exit 1
-		fi
-	else
-		echo -e "${Error} Lotsever does not support the current system ${release} ${version} ${bit} !" && exit 1
-	fi
-}
-
-check_status(){
-	kernel_version=$(uname -r | awk -F "-" '{print $1}')
-	kernel_version_full=$(uname -r)
-	kernel_major=$(echo "${kernel_version}" | awk -F'.' '{print $1}')
-	kernel_minor=$(echo "${kernel_version}" | awk -F'.' '{print $2}')
-	if [[ ${kernel_version_full} = "4.14.129-bbrplus" ]]; then
-		kernel_status="BBRplus"
-	elif [[ ${kernel_version} = "3.10.0" || ${kernel_version} = "3.16.0" || ${kernel_version} = "3.2.0" || ${kernel_version} = "4.4.0" || ${kernel_version} = "3.13.0"  || ${kernel_version} = "2.6.32" || ${kernel_version} = "4.9.0" ]]; then
-		kernel_status="Lotserver"
-	elif [[ "${kernel_major}" == "4" ]] && [[ "${kernel_minor}" -ge 9 ]] || [[ "${kernel_major}" == "5" ]]; then
-		kernel_status="BBR"
-	else 
-		kernel_status="noinstall"
-	fi
-
-	if [[ ${kernel_status} == "Lotserver" ]]; then
-		if [[ -e /appex/bin/lotServer.sh ]]; then
-			run_status=$(bash /appex/bin/lotServer.sh status | awk '/LotServer/ {print $3; exit}')
-			if [[ ${run_status} = "running!" ]]; then
-				run_status="Successfully started"
-			else 
-				run_status="Startup failed"
-			fi
-		else 
-			run_status="No acceleration module installed"
-		fi
-	elif [[ ${kernel_status} == "BBR" ]]; then
-		run_status=$(awk -F "=" '/net.ipv4.tcp_congestion_control/ {gsub(/[[:space:]]/, "", $2); print $2; exit}' /etc/sysctl.conf)
-		if [[ ${run_status} == "bbr" ]]; then
-			run_status=$(lsmod | awk '/bbr/ {print $1; exit}')
-			if [[ ${run_status} == "tcp_bbr" ]]; then
-				run_status="BBR started successfully"
-			else 
-				run_status="BBR failed to start"
-			fi
-		elif [[ ${run_status} == "tsunami" ]]; then
-			run_status=$(lsmod | awk '/tsunami/ {print $1; exit}')
-			if [[ ${run_status} == "tcp_tsunami" ]]; then
-				run_status="BBR Magic Revamp launched successfully"
-			else 
-				run_status="BBR Magic Revamp failed to start"
-			fi
-		elif [[ ${run_status} == "nanqinlang" ]]; then
-			run_status=$(lsmod | awk '/nanqinlang/ {print $1; exit}')
-			if [[ ${run_status} == "tcp_nanqinlang" ]]; then
-				run_status="Violent BBR Magic Revamp launched successfully"
-			else 
-				run_status="Violent BBR demo revision failed to start"
-			fi
-		else 
-			run_status="No acceleration module installed"
-		fi
-	elif [[ ${kernel_status} == "BBRplus" ]]; then
-		run_status=$(awk -F "=" '/net.ipv4.tcp_congestion_control/ {gsub(/[[:space:]]/, "", $2); print $2; exit}' /etc/sysctl.conf)
-		if [[ ${run_status} == "bbrplus" ]]; then
-			run_status=$(lsmod | awk '/bbrplus/ {print $1; exit}')
-			if [[ ${run_status} == "tcp_bbrplus" ]]; then
-				run_status="BBRplus started successfully"
-			else 
-				run_status="BBRplus failed to start"
-			fi
-		else 
-			run_status="No acceleration module installed"
-		fi
-	fi
-}
-
-#############System detection components#############
-check_sys
-check_version
-[[ ${release} != "debian" ]] && [[ ${release} != "ubuntu" ]] && [[ ${release} != "centos" ]] && echo -e "${Error} This script does not support the current system ${release} !" && exit 1
 start_menu

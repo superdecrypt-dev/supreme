@@ -51,18 +51,22 @@ restart_initd_if_present() {
   /etc/init.d/"$service_name" restart
 }
 
+restart_initd_or_warn() {
+  local service_name=$1
+  local label=$2
+  restart_initd_if_present "$service_name" || echo -e "[ \033[33mWarn\033[0m ] ${label} service not installed"
+}
+
 restart_all() {
   print_begin
-  /etc/init.d/ssh restart
-  /etc/init.d/dropbear restart
-  /etc/init.d/stunnel4 restart
-  restart_initd_if_present openvpn || echo -e "[ \033[33mWarn\033[0m ] OpenVPN service not installed"
-  /etc/init.d/fail2ban restart
-  /etc/init.d/cron restart
-  /etc/init.d/nginx restart
-  if [ -x /etc/init.d/squid ]; then
-    /etc/init.d/squid restart
-  fi
+  restart_initd_or_warn ssh "SSH"
+  restart_initd_or_warn dropbear "Dropbear"
+  restart_initd_or_warn stunnel4 "Stunnel4"
+  restart_initd_or_warn openvpn "OpenVPN"
+  restart_initd_or_warn fail2ban "Fail2ban"
+  restart_initd_or_warn cron "Cron"
+  restart_initd_or_warn nginx "Nginx"
+  restart_initd_or_warn squid "Squid"
 
   echo -e "[ \033[32mok\033[0m ] Restarting xray Service (via systemctl) "
   sleep 0.5
@@ -116,12 +120,12 @@ while true; do
 
   case "$Restart" in
     1) restart_all ;;
-    2) restart_single "SSH" /etc/init.d/ssh restart ;;
-    3) restart_single "Dropbear" /etc/init.d/dropbear restart ;;
-    4) restart_single "Stunnel4" /etc/init.d/stunnel4 restart ;;
+    2) restart_single "SSH" restart_initd_if_present ssh ;;
+    3) restart_single "Dropbear" restart_initd_if_present dropbear ;;
+    4) restart_single "Stunnel4" restart_initd_if_present stunnel4 ;;
     5) restart_single "Openvpn" restart_initd_if_present openvpn ;;
     6) restart_single "Squid" restart_initd_if_present squid ;;
-    7) restart_single "Nginx" /etc/init.d/nginx restart ;;
+    7) restart_single "Nginx" restart_initd_if_present nginx ;;
     8)
       print_begin
       echo -e "[ \033[32mok\033[0m ] Restarting badvpn Service (via systemctl) "
