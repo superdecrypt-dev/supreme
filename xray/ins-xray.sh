@@ -1,38 +1,54 @@
 #!/bin/bash
+green='\e[0;32m'
+yell='\e[1;33m'
+NC='\e[0m'
+RAW_BASE_URL="https://raw.githubusercontent.com/superdecrypt-dev/supreme/main"
+
+download_usr_bin() {
+  local bin_name="$1"
+  local remote_path="$2"
+  local url="${RAW_BASE_URL}/${remote_path}"
+  if ! wget -q -O "/usr/bin/${bin_name}" "$url"; then
+    echo -e "[ ${yell}ERROR${NC} ] Failed to download ${url}"
+    exit 1
+  fi
+  chmod +x "/usr/bin/${bin_name}"
+}
+
 echo -e "
 "
 date
 echo ""
+if [ ! -s /root/domain ]; then
+  echo -e "[ ${yell}ERROR${NC} ] /root/domain not found or empty"
+  exit 1
+fi
 domain=$(< /root/domain)
 sleep 0.5
 mkdir -p /etc/xray 
 echo -e "[ ${green}INFO${NC} ] Checking... "
 apt install iptables iptables-persistent -y
 sleep 0.5
-echo -e "[ ${green}INFO$NC ] Setting ntpdate"
-ntpdate pool.ntp.org 
+echo -e "[ ${green}INFO$NC ] Setting time service"
 timedatectl set-ntp true
-sleep 0.5
-echo -e "[ ${green}INFO$NC ] Enable chronyd"
-systemctl enable chronyd
-systemctl restart chronyd
-sleep 0.5
-echo -e "[ ${green}INFO$NC ] Enable chrony"
-systemctl enable chrony
-systemctl restart chrony
 timedatectl set-timezone Asia/Jakarta
+sleep 0.5
+echo -e "[ ${green}INFO$NC ] Installing dependencies"
+apt clean all && apt update
+apt install curl socat xz-utils wget apt-transport-https gnupg gnupg2 gnupg1 dnsutils lsb-release cron bash-completion ntpdate chrony zip pwgen openssl netcat -y
+ntpdate pool.ntp.org
+for chrony_service in chronyd chrony; do
+  if systemctl list-unit-files | awk '{print $1}' | grep -qx "${chrony_service}.service"; then
+    echo -e "[ ${green}INFO$NC ] Enable ${chrony_service}"
+    systemctl enable "${chrony_service}"
+    systemctl restart "${chrony_service}"
+    break
+  fi
+done
 sleep 0.5
 echo -e "[ ${green}INFO$NC ] Setting chrony tracking"
 chronyc sourcestats -v
 chronyc tracking -v
-echo -e "[ ${green}INFO$NC ] Setting dll"
-apt clean all && apt update
-apt install curl socat xz-utils wget apt-transport-https gnupg gnupg2 gnupg1 dnsutils lsb-release -y 
-apt install socat cron bash-completion ntpdate -y
-ntpdate pool.ntp.org
-apt -y install chrony
-apt install zip -y
-apt install curl pwgen openssl netcat cron -y
 
 
 # install xray
@@ -42,25 +58,26 @@ mkdir -p /run/xray
 chown www-data.www-data /run/xray
 # Make Folder XRay
 mkdir -p /var/log/xray
-mkdir -p /etc/xray
 chown www-data.www-data /var/log/xray
-chmod +x /var/log/xray
 touch /var/log/xray/access.log
 touch /var/log/xray/error.log
 touch /var/log/xray/access2.log
 touch /var/log/xray/error2.log
 # / / Ambil Xray Core Version Terbaru
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data --version 1.6.1
+bash -c "$(curl -fsSL https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data
 
 ## crt xray
 systemctl stop nginx
-mkdir /root/.acme.sh
-curl https://acme-install.netlify.app/acme.sh -o /root/.acme.sh/acme.sh
+mkdir -p /root/.acme.sh
+if ! curl -fsSL https://acme-install.netlify.app/acme.sh -o /root/.acme.sh/acme.sh; then
+  echo -e "[ ${yell}ERROR${NC} ] Failed to download acme.sh installer"
+  exit 1
+fi
 chmod +x /root/.acme.sh/acme.sh
 /root/.acme.sh/acme.sh --upgrade --auto-upgrade
 /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt
-/root/.acme.sh/acme.sh --issue -d $domain --standalone -k ec-256
-~/.acme.sh/acme.sh --installcert -d $domain --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
+/root/.acme.sh/acme.sh --issue -d "$domain" --standalone -k ec-256
+~/.acme.sh/acme.sh --installcert -d "$domain" --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
 
 # nginx renew ssl
 echo -n '#!/bin/bash
@@ -333,14 +350,15 @@ END
 rm -rf /etc/systemd/system/xray.service.d
 rm -rf /etc/systemd/system/xray@.service
 cat <<EOF> /etc/systemd/system/xray.service
+[Unit]
 Description=Xray Service
 Documentation=https://github.com/xtls
 After=network.target nss-lookup.target
 
 [Service]
 User=www-data
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
 NoNewPrivileges=true
 ExecStart=/usr/local/bin/xray run -config /etc/xray/config.json
 Restart=on-failure
@@ -490,32 +508,33 @@ systemctl restart runn
 
 
 cd /usr/bin/
-# vmess
-wget -O add-ws "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/add-ws.sh" && chmod +x add-ws
-wget -O trialvmess "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/trialvmess.sh" && chmod +x trialvmess
-wget -O renew-ws "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/renew-ws.sh" && chmod +x renew-ws
-wget -O del-ws "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/del-ws.sh" && chmod +x del-ws
-wget -O cek-ws "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/cek-ws.sh" && chmod +x cek-ws
+download_targets=(
+  "add-ws:xray/add-ws.sh"
+  "trialvmess:xray/trialvmess.sh"
+  "renew-ws:xray/renew-ws.sh"
+  "del-ws:xray/del-ws.sh"
+  "cek-ws:xray/cek-ws.sh"
+  "add-vless:xray/add-vless.sh"
+  "trialvless:xray/trialvless.sh"
+  "renew-vless:xray/renew-vless.sh"
+  "del-vless:xray/del-vless.sh"
+  "cek-vless:xray/cek-vless.sh"
+  "add-tr:xray/add-tr.sh"
+  "trialtrojan:xray/trialtrojan.sh"
+  "del-tr:xray/del-tr.sh"
+  "renew-tr:xray/renew-tr.sh"
+  "cek-tr:xray/cek-tr.sh"
+  "add-ssws:xray/add-ssws.sh"
+  "trialssws:xray/trialssws.sh"
+  "del-ssws:xray/del-ssws.sh"
+  "renew-ssws:xray/renew-ssws.sh"
+)
 
-# vless
-wget -O add-vless "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/add-vless.sh" && chmod +x add-vless
-wget -O trialvless "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/trialvless.sh" && chmod +x trialvless
-wget -O renew-vless "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/renew-vless.sh" && chmod +x renew-vless
-wget -O del-vless "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/del-vless.sh" && chmod +x del-vless
-wget -O cek-vless "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/cek-vless.sh" && chmod +x cek-vless
-
-# trojan
-wget -O add-tr "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/add-tr.sh" && chmod +x add-tr
-wget -O trialtrojan "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/trialtrojan.sh" && chmod +x trialtrojan
-wget -O del-tr "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/del-tr.sh" && chmod +x del-tr
-wget -O renew-tr "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/renew-tr.sh" && chmod +x renew-tr
-wget -O cek-tr "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/cek-tr.sh" && chmod +x cek-tr
-
-# shadowsocks
-wget -O add-ssws "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/add-ssws.sh" && chmod +x add-ssws
-wget -O trialssws "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/trialssws.sh" && chmod +x trialssws
-wget -O del-ssws "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/del-ssws.sh" && chmod +x del-ssws
-wget -O renew-ssws "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/renew-ssws.sh" && chmod +x renew-ssws
+for target in "${download_targets[@]}"; do
+  name="${target%%:*}"
+  path="${target#*:}"
+  download_usr_bin "$name" "$path"
+done
 
 
 sleep 0.5
@@ -523,7 +542,11 @@ yellow() { echo -e "\\033[33;1m${*}\\033[0m"; }
 yellow "xray/Vmess"
 yellow "xray/Vless"
 
-mv /root/domain /etc/xray/ 
+if [ -s /root/domain ]; then
+  install -m 0644 /root/domain /etc/xray/domain
+else
+  echo -e "[ ${yell}WARN${NC} ] /root/domain is missing, skip copying domain file"
+fi
 if [ -f /root/scdomain ];then
 rm /root/scdomain > /dev/null 2>&1
 fi

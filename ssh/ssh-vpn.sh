@@ -9,6 +9,67 @@ apt install -y screen curl jq bzip2 gzip vnstat coreutils rsyslog iftop zip unzi
 
 # initializing var
 export DEBIAN_FRONTEND=noninteractive
+green='\e[0;32m'
+yell='\e[1;33m'
+NC='\e[0m'
+RAW_BASE_URL="https://raw.githubusercontent.com/superdecrypt-dev/supreme/main"
+
+# helpers
+append_line_once() {
+  local file="$1"
+  local line="$2"
+  grep -qxF "$line" "$file" 2>/dev/null || echo "$line" >> "$file"
+}
+
+insert_rc_local_once() {
+  local line="$1"
+  grep -qxF "$line" /etc/rc.local 2>/dev/null || sed -i "\$ i\\${line}" /etc/rc.local
+}
+
+insert_before_match_once() {
+  local file="$1"
+  local line="$2"
+
+  grep -qxF "$line" "$file" 2>/dev/null && return 0
+
+  if grep -q '^Match[[:space:]]' "$file"; then
+    awk -v new_line="$line" '
+      BEGIN { inserted = 0 }
+      !inserted && /^Match[[:space:]]/ { print new_line; inserted = 1 }
+      { print }
+      END { if (!inserted) print new_line }
+    ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+  else
+    echo "$line" >> "$file"
+  fi
+}
+
+download_file() {
+  local dest="$1"
+  local remote_path="$2"
+  local url="${RAW_BASE_URL}/${remote_path}"
+  if ! wget -q -O "$dest" "$url"; then
+    echo -e "[ ${yell}ERROR${NC} ] Failed to download ${url}"
+    exit 1
+  fi
+}
+
+download_usr_bin() {
+  local bin_name="$1"
+  local remote_path="$2"
+  download_file "/usr/bin/${bin_name}" "$remote_path"
+  chmod +x "/usr/bin/${bin_name}"
+}
+
+restart_initd_if_present() {
+  local service_name="$1"
+  local label="$2"
+  if [ -x "/etc/init.d/${service_name}" ]; then
+    /etc/init.d/"${service_name}" restart >/dev/null 2>&1
+  else
+    echo -e "[ ${yell}WARN${NC} ] ${label} not installed, skipping restart"
+  fi
+}
 
 #detail nama perusahaan
 country=ID
@@ -20,7 +81,29 @@ commonname=none
 email=none
 
 # simple password minimal
-curl -sS https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/password | openssl aes-256-cbc -d -a -pass pass:scvps07gg -pbkdf2 > /etc/pam.d/common-password
+pam_src_url="https://raw.githubusercontent.com/superdecrypt-dev/supreme/main/ssh/password"
+pam_enc_file=$(mktemp)
+pam_dec_file=$(mktemp)
+if ! curl -fsSL "$pam_src_url" -o "$pam_enc_file"; then
+  echo "Failed to download PAM policy from ${pam_src_url}"
+  rm -f "$pam_enc_file" "$pam_dec_file"
+  exit 1
+fi
+if ! openssl aes-256-cbc -d -a -pass pass:scvps07gg -pbkdf2 -in "$pam_enc_file" -out "$pam_dec_file"; then
+  echo "Failed to decrypt PAM policy payload"
+  rm -f "$pam_enc_file" "$pam_dec_file"
+  exit 1
+fi
+if [ ! -s "$pam_dec_file" ]; then
+  echo "Decrypted PAM policy is empty, aborting"
+  rm -f "$pam_enc_file" "$pam_dec_file"
+  exit 1
+fi
+if [ -f /etc/pam.d/common-password ]; then
+  cp -f /etc/pam.d/common-password "/etc/pam.d/common-password.bak.$(date +%s)"
+fi
+install -m 0644 "$pam_dec_file" /etc/pam.d/common-password
+rm -f "$pam_enc_file" "$pam_dec_file"
 
 # go to root
 cd
@@ -58,7 +141,7 @@ systemctl start rc-local.service
 
 # disable ipv6
 echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
-sed -i '$ i\echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6' /etc/rc.local
+insert_rc_local_once "echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6"
 
 #update
 apt update -y
@@ -66,18 +149,11 @@ apt upgrade -y
 apt dist-upgrade -y
 apt-get remove --purge exim4 -y
 
-#install jq
-apt -y install jq
-
 #install shc
 apt -y install shc
 
-# install wget and curl
-apt -y install wget curl
-
 #figlet
-apt-get install figlet -y
-apt-get install ruby -y
+apt-get install figlet ruby -y
 gem install lolcat
 
 # set time GMT +7
@@ -89,44 +165,33 @@ sed -i 's/AcceptEnv/#AcceptEnv/g' /etc/ssh/sshd_config
 # install webserver
 apt -y install nginx
 cd
-rm /etc/nginx/sites-enabled/default
-rm /etc/nginx/sites-available/default
-wget -O /etc/nginx/nginx.conf "https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/nginx.conf"
+rm -f /etc/nginx/sites-enabled/default
+rm -f /etc/nginx/sites-available/default
+download_file /etc/nginx/nginx.conf "ssh/nginx.conf"
 mkdir -p /home/vps/public_html
 /etc/init.d/nginx restart
 
 # install badvpn
 cd
-wget -O /usr/bin/badvpn-udpgw "https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/newudpgw"
+download_file /usr/bin/badvpn-udpgw "ssh/newudpgw"
 chmod +x /usr/bin/badvpn-udpgw
-sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7100 --max-clients 500' /etc/rc.local
-sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7200 --max-clients 500' /etc/rc.local
-sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 500' /etc/rc.local
-sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7400 --max-clients 500' /etc/rc.local
-sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7500 --max-clients 500' /etc/rc.local
-sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7600 --max-clients 500' /etc/rc.local
-sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7700 --max-clients 500' /etc/rc.local
-sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7800 --max-clients 500' /etc/rc.local
-sed -i '$ i\screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7900 --max-clients 500' /etc/rc.local
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7100 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7200 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7400 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7500 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7600 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7700 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7800 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7900 --max-clients 500
+pkill -f "badvpn-udpgw --listen-addr 127.0.0.1:" >/dev/null 2>&1 || true
+for port in 7100 7200 7300 7400 7500 7600 7700 7800 7900; do
+  insert_rc_local_once "screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:${port} --max-clients 500"
+  screen -dmS badvpn badvpn-udpgw --listen-addr "127.0.0.1:${port}" --max-clients 500
+done
 
 # setting port ssh
 cd
 sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
-sed -i '/Port 22/a Port 500' /etc/ssh/sshd_config
-sed -i '/Port 22/a Port 40000' /etc/ssh/sshd_config
-sed -i '/Port 22/a Port 51443' /etc/ssh/sshd_config
-sed -i '/Port 22/a Port 58080' /etc/ssh/sshd_config
-sed -i '/Port 22/a Port 200' /etc/ssh/sshd_config
-sed -i '/Port 22/a Port 22' /etc/ssh/sshd_config
+if grep -q '^PasswordAuthentication[[:space:]]' /etc/ssh/sshd_config; then
+  sed -i 's/^PasswordAuthentication[[:space:]].*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+else
+  insert_before_match_once /etc/ssh/sshd_config "PasswordAuthentication yes"
+fi
+for ssh_port in 22 200 500 40000 51443 58080; do
+  insert_before_match_once /etc/ssh/sshd_config "Port ${ssh_port}"
+done
 /etc/init.d/ssh restart
 
 echo "=== Install Dropbear ==="
@@ -135,9 +200,8 @@ apt -y install dropbear
 sed -i 's/NO_START=1/NO_START=0/g' /etc/default/dropbear
 sed -i 's/DROPBEAR_PORT=22/DROPBEAR_PORT=143/g' /etc/default/dropbear
 sed -i 's/DROPBEAR_EXTRA_ARGS=/DROPBEAR_EXTRA_ARGS="-p 50000 -p 109 -p 110 -p 69"/g' /etc/default/dropbear
-echo "/bin/false" >> /etc/shells
-echo "/usr/sbin/nologin" >> /etc/shells
-/etc/init.d/ssh restart
+append_line_once /etc/shells "/bin/false"
+append_line_once /etc/shells "/usr/sbin/nologin"
 /etc/init.d/dropbear restart
 
 cd
@@ -182,33 +246,6 @@ sed -i 's/ENABLED=0/ENABLED=1/g' /etc/default/stunnel4
 # install fail2ban
 apt -y install fail2ban
 
-# Instal DDOS Flate
-if [ -d '/usr/local/ddos' ]; then
-	echo; echo; echo "Please un-install the previous version first"
-	exit 0
-else
-	mkdir /usr/local/ddos
-fi
-clear
-echo; echo 'Installing DOS-Deflate 0.6'; echo
-echo; echo -n 'Downloading source files...'
-wget -q -O /usr/local/ddos/ddos.conf http://www.inetbase.com/scripts/ddos/ddos.conf
-echo -n '.'
-wget -q -O /usr/local/ddos/LICENSE http://www.inetbase.com/scripts/ddos/LICENSE
-echo -n '.'
-wget -q -O /usr/local/ddos/ignore.ip.list http://www.inetbase.com/scripts/ddos/ignore.ip.list
-echo -n '.'
-wget -q -O /usr/local/ddos/ddos.sh http://www.inetbase.com/scripts/ddos/ddos.sh
-chmod 0755 /usr/local/ddos/ddos.sh
-cp -s /usr/local/ddos/ddos.sh /usr/local/sbin/ddos
-echo '...done'
-echo; echo -n 'Creating cron to run script every minute.....(Default setting)'
-/usr/local/ddos/ddos.sh --cron > /dev/null 2>&1
-echo '.....done'
-echo; echo 'Installation has completed.'
-echo 'Config file is at /usr/local/ddos/ddos.conf'
-echo 'Please send in your comments and/or suggestions to zaf@vsnl.com'
-
 # blokir torrent
 iptables -A FORWARD -m string --string "get_peers" --algo bm -j DROP
 iptables -A FORWARD -m string --string "announce_peer" --algo bm -j DROP
@@ -228,73 +265,43 @@ netfilter-persistent reload
 
 
 # download script
-cd /usr/bin
-# menu
-wget -O menu "https://raw.githubusercontent.com/nanotechid/supreme/aio/menu/menu.sh"
-wget -O m-vmess "https://raw.githubusercontent.com/nanotechid/supreme/aio/menu/m-vmess.sh"
-wget -O m-vless "https://raw.githubusercontent.com/nanotechid/supreme/aio/menu/m-vless.sh"
-wget -O running "https://raw.githubusercontent.com/nanotechid/supreme/aio/menu/running.sh"
-wget -O clearcache "https://raw.githubusercontent.com/nanotechid/supreme/aio/menu/clearcache.sh"
-wget -O m-ssws "https://raw.githubusercontent.com/nanotechid/supreme/aio/menu/m-ssws.sh"
-wget -O m-trojan "https://raw.githubusercontent.com/nanotechid/supreme/aio/menu/m-trojan.sh"
+cd /usr/bin || exit 1
+download_targets=(
+  "menu:menu/menu.sh"
+  "m-vmess:menu/m-vmess.sh"
+  "m-vless:menu/m-vless.sh"
+  "running:menu/running.sh"
+  "clearcache:menu/clearcache.sh"
+  "m-ssws:menu/m-ssws.sh"
+  "m-trojan:menu/m-trojan.sh"
+  "m-sshovpn:menu/m-sshovpn.sh"
+  "usernew:ssh/usernew.sh"
+  "trial:ssh/trial.sh"
+  "renew:ssh/renew.sh"
+  "hapus:ssh/hapus.sh"
+  "cek:ssh/cek.sh"
+  "member:ssh/member.sh"
+  "delete:ssh/delete.sh"
+  "autokill:ssh/autokill.sh"
+  "ceklim:ssh/ceklim.sh"
+  "tendang:ssh/tendang.sh"
+  "m-system:menu/m-system.sh"
+  "m-domain:menu/m-domain.sh"
+  "add-host:ssh/add-host.sh"
+  "certv2ray:xray/certv2ray.sh"
+  "speedtest:ssh/speedtest_cli.py"
+  "auto-reboot:menu/auto-reboot.sh"
+  "restart:menu/restart.sh"
+  "bw:menu/bw.sh"
+  "m-tcp:menu/tcp.sh"
+  "xp:ssh/xp.sh"
+)
 
-# menu ssh ovpn
-wget -O m-sshovpn "https://raw.githubusercontent.com/nanotechid/supreme/aio/menu/m-sshovpn.sh"
-wget -O usernew "https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/usernew.sh"
-wget -O trial "https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/trial.sh"
-wget -O renew "https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/renew.sh"
-wget -O hapus "https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/hapus.sh"
-wget -O cek "https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/cek.sh"
-wget -O member "https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/member.sh"
-wget -O delete "https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/delete.sh"
-wget -O autokill "https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/autokill.sh"
-wget -O ceklim "https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/ceklim.sh"
-wget -O tendang "https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/tendang.sh"
-
-# menu system
-wget -O m-system "https://raw.githubusercontent.com/nanotechid/supreme/aio/menu/m-system.sh"
-wget -O m-domain "https://raw.githubusercontent.com/nanotechid/supreme/aio/menu/m-domain.sh"
-wget -O add-host "https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/add-host.sh"
-wget -O certv2ray "https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/certv2ray.sh"
-wget -O speedtest "https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/speedtest_cli.py"
-wget -O auto-reboot "https://raw.githubusercontent.com/nanotechid/supreme/aio/menu/auto-reboot.sh"
-wget -O restart "https://raw.githubusercontent.com/nanotechid/supreme/aio/menu/restart.sh"
-wget -O bw "https://raw.githubusercontent.com/nanotechid/supreme/aio/menu/bw.sh"
-wget -O m-tcp "https://raw.githubusercontent.com/nanotechid/supreme/aio/menu/tcp.sh"
-
-wget -O xp "https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/xp.sh"
-
-chmod +x menu
-chmod +x m-vmess
-chmod +x m-vless
-chmod +x running
-chmod +x clearcache
-chmod +x m-ssws
-chmod +x m-trojan
-
-chmod +x m-sshovpn
-chmod +x usernew
-chmod +x trial
-chmod +x renew
-chmod +x hapus
-chmod +x cek
-chmod +x member
-chmod +x delete
-chmod +x autokill
-chmod +x ceklim
-chmod +x tendang
-
-chmod +x m-system
-chmod +x m-domain
-chmod +x add-host
-chmod +x certv2ray
-chmod +x speedtest
-chmod +x auto-reboot
-chmod +x restart
-chmod +x bw
-chmod +x m-tcp
-
-chmod +x xp
+for target in "${download_targets[@]}"; do
+  name="${target%%:*}"
+  path="${target#*:}"
+  download_usr_bin "$name" "$path"
+done
 cd
 
 
@@ -315,7 +322,6 @@ cat > /home/re_otm <<-END
 END
 
 service cron restart >/dev/null 2>&1
-service cron reload >/dev/null 2>&1
 
 # remove unnecessary files
 sleep 0.5
@@ -336,46 +342,40 @@ cd
 chown -R www-data:www-data /home/vps/public_html
 sleep 0.5
 echo -e "$yell[SERVICE]$NC Restart All service SSH & OVPN"
-/etc/init.d/nginx restart >/dev/null 2>&1
+restart_initd_if_present nginx "Nginx"
 sleep 0.5
 echo -e "[ ${green}ok${NC} ] Restarting nginx"
-/etc/init.d/openvpn restart >/dev/null 2>&1
-sleep 0.5
-echo -e "[ ${green}ok${NC} ] Restarting cron "
-/etc/init.d/ssh restart >/dev/null 2>&1
+restart_initd_if_present openvpn "OpenVPN"
 sleep 0.5
 echo -e "[ ${green}ok${NC} ] Restarting ssh "
-/etc/init.d/dropbear restart >/dev/null 2>&1
+restart_initd_if_present ssh "SSH"
 sleep 0.5
 echo -e "[ ${green}ok${NC} ] Restarting dropbear "
-/etc/init.d/fail2ban restart >/dev/null 2>&1
+restart_initd_if_present dropbear "Dropbear"
 sleep 0.5
 echo -e "[ ${green}ok${NC} ] Restarting fail2ban "
-/etc/init.d/stunnel4 restart >/dev/null 2>&1
+restart_initd_if_present fail2ban "Fail2ban"
 sleep 0.5
 echo -e "[ ${green}ok${NC} ] Restarting stunnel4 "
-/etc/init.d/vnstat restart >/dev/null 2>&1
+restart_initd_if_present stunnel4 "Stunnel4"
 sleep 0.5
 echo -e "[ ${green}ok${NC} ] Restarting vnstat "
-/etc/init.d/squid restart >/dev/null 2>&1
+restart_initd_if_present vnstat "Vnstat"
+sleep 0.5
+echo -e "[ ${green}ok${NC} ] Restarting squid "
+restart_initd_if_present squid "Squid"
 
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7100 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7200 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7400 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7500 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7600 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7700 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7800 --max-clients 500
-screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7900 --max-clients 500
+pkill -f "badvpn-udpgw --listen-addr 127.0.0.1:" >/dev/null 2>&1 || true
+for port in 7100 7200 7300 7400 7500 7600 7700 7800 7900; do
+  screen -dmS badvpn badvpn-udpgw --listen-addr "127.0.0.1:${port}" --max-clients 500
+done
 history -c
-echo "unset HISTFILE" >> /etc/profile
+append_line_once /etc/profile "unset HISTFILE"
 
 
 rm -f /root/key.pem
 rm -f /root/cert.pem
 rm -f /root/ssh-vpn.sh
-rm -f /root/bbr.sh
 
 # finihsing
 clear

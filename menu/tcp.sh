@@ -15,17 +15,17 @@ Tip="${Green_font_prefix}[Tip]${Font_color_suffix}"
 installbbr(){
 	kernel_version="4.11.8"
 	if [[ "${release}" == "centos" ]]; then
-		rpm --import http://${github}/bbr/${release}/RPM-GPG-KEY-elrepo.org
-		yum install -y http://${github}/bbr/${release}/${version}/${bit}/kernel-ml-${kernel_version}.rpm
+		rpm --import https://${github}/bbr/${release}/RPM-GPG-KEY-elrepo.org
+		yum install -y https://${github}/bbr/${release}/${version}/${bit}/kernel-ml-${kernel_version}.rpm
 		yum remove -y kernel-headers
-		yum install -y http://${github}/bbr/${release}/${version}/${bit}/kernel-ml-headers-${kernel_version}.rpm
-		yum install -y http://${github}/bbr/${release}/${version}/${bit}/kernel-ml-devel-${kernel_version}.rpm
+		yum install -y https://${github}/bbr/${release}/${version}/${bit}/kernel-ml-headers-${kernel_version}.rpm
+		yum install -y https://${github}/bbr/${release}/${version}/${bit}/kernel-ml-devel-${kernel_version}.rpm
 	elif [[ "${release}" == "debian" || "${release}" == "ubuntu" ]]; then
 		mkdir bbr && cd bbr
-		wget http://security.debian.org/debian-security/pool/updates/main/o/openssl/libssl1.0.0_1.0.1t-1+deb8u10_amd64.deb
-		wget -N --no-check-certificate http://${github}/bbr/debian-ubuntu/linux-headers-${kernel_version}-all.deb
-		wget -N --no-check-certificate http://${github}/bbr/debian-ubuntu/${bit}/linux-headers-${kernel_version}.deb
-		wget -N --no-check-certificate http://${github}/bbr/debian-ubuntu/${bit}/linux-image-${kernel_version}.deb
+		wget https://security.debian.org/debian-security/pool/updates/main/o/openssl/libssl1.0.0_1.0.1t-1+deb8u10_amd64.deb
+		wget -N https://${github}/bbr/debian-ubuntu/linux-headers-${kernel_version}-all.deb
+		wget -N https://${github}/bbr/debian-ubuntu/${bit}/linux-headers-${kernel_version}.deb
+		wget -N https://${github}/bbr/debian-ubuntu/${bit}/linux-image-${kernel_version}.deb
 	
 		dpkg -i libssl1.0.0_1.0.1t-1+deb8u10_amd64.deb
 		dpkg -i linux-headers-${kernel_version}-all.deb
@@ -48,14 +48,14 @@ installbbr(){
 installbbrplus(){
 	kernel_version="4.14.129-bbrplus"
 	if [[ "${release}" == "centos" ]]; then
-		wget -N --no-check-certificate https://${github}/bbrplus/${release}/${version}/kernel-${kernel_version}.rpm
+		wget -N https://${github}/bbrplus/${release}/${version}/kernel-${kernel_version}.rpm
 		yum install -y kernel-${kernel_version}.rpm
 		rm -f kernel-${kernel_version}.rpm
 		kernel_version="4.14.129_bbrplus" #fix a bug
 	elif [[ "${release}" == "debian" || "${release}" == "ubuntu" ]]; then
 		mkdir bbrplus && cd bbrplus
-		wget -N --no-check-certificate http://${github}/bbrplus/debian-ubuntu/${bit}/linux-headers-${kernel_version}.deb
-		wget -N --no-check-certificate http://${github}/bbrplus/debian-ubuntu/${bit}/linux-image-${kernel_version}.deb
+		wget -N https://${github}/bbrplus/debian-ubuntu/${bit}/linux-headers-${kernel_version}.deb
+		wget -N https://${github}/bbrplus/debian-ubuntu/${bit}/linux-image-${kernel_version}.deb
 		dpkg -i linux-headers-${kernel_version}.deb
 		dpkg -i linux-image-${kernel_version}.deb
 		cd .. && rm -rf bbrplus
@@ -74,17 +74,17 @@ installbbrplus(){
 #Install Lotserver kernel
 installlot(){
 	if [[ "${release}" == "centos" ]]; then
-		rpm --import http://${github}/lotserver/${release}/RPM-GPG-KEY-elrepo.org
+		rpm --import https://${github}/lotserver/${release}/RPM-GPG-KEY-elrepo.org
 		yum remove -y kernel-firmware
-		yum install -y http://${github}/lotserver/${release}/${version}/${bit}/kernel-firmware-${kernel_version}.rpm
-		yum install -y http://${github}/lotserver/${release}/${version}/${bit}/kernel-${kernel_version}.rpm
+		yum install -y https://${github}/lotserver/${release}/${version}/${bit}/kernel-firmware-${kernel_version}.rpm
+		yum install -y https://${github}/lotserver/${release}/${version}/${bit}/kernel-${kernel_version}.rpm
 		yum remove -y kernel-headers
-		yum install -y http://${github}/lotserver/${release}/${version}/${bit}/kernel-headers-${kernel_version}.rpm
-		yum install -y http://${github}/lotserver/${release}/${version}/${bit}/kernel-devel-${kernel_version}.rpm
+		yum install -y https://${github}/lotserver/${release}/${version}/${bit}/kernel-headers-${kernel_version}.rpm
+		yum install -y https://${github}/lotserver/${release}/${version}/${bit}/kernel-devel-${kernel_version}.rpm
 	elif [[ "${release}" == "ubuntu" ]]; then
-		bash <(wget --no-check-certificate -qO- "http://${github}/Debian_Kernel.sh")
+		bash <(wget -qO- "https://${github}/Debian_Kernel.sh")
 	elif [[ "${release}" == "debian" ]]; then
-		bash <(wget --no-check-certificate -qO- "http://${github}/Debian_Kernel.sh")
+		bash <(wget -qO- "https://${github}/Debian_Kernel.sh")
 	fi
 	detele_kernel
 	BBR_grub
@@ -121,7 +121,7 @@ startbbrmod(){
 	if [[ "${release}" == "centos" ]]; then
 		yum install -y make gcc
 		mkdir bbrmod && cd bbrmod
-		wget -N --no-check-certificate http://${github}/bbr/tcp_tsunami.c
+		wget -N https://${github}/bbr/tcp_tsunami.c
 		echo "obj-m:=tcp_tsunami.o" > Makefile
 			make -C /lib/modules/$(uname -r)/build M="$(pwd)" modules CC=/usr/bin/gcc
 		chmod +x ./tcp_tsunami.ko
@@ -138,7 +138,7 @@ startbbrmod(){
 		fi
 		apt-get -y install make gcc
 		mkdir bbrmod && cd bbrmod
-		wget -N --no-check-certificate http://${github}/bbr/tcp_tsunami.c
+		wget -N https://${github}/bbr/tcp_tsunami.c
 		echo "obj-m:=tcp_tsunami.o" > Makefile
 		ln -s /usr/bin/gcc /usr/bin/gcc-4.9
 			make -C /lib/modules/$(uname -r)/build M="$(pwd)" modules CC=/usr/bin/gcc-4.9
@@ -161,7 +161,7 @@ startbbrmod_nanqinlang(){
 	if [[ "${release}" == "centos" ]]; then
 		yum install -y make gcc
 		mkdir bbrmod && cd bbrmod
-		wget -N --no-check-certificate https://raw.githubusercontent.com/chiakge/Linux-NetSpeed/master/bbr/centos/tcp_nanqinlang.c
+		wget -N https://raw.githubusercontent.com/chiakge/Linux-NetSpeed/master/bbr/centos/tcp_nanqinlang.c
 		echo "obj-m := tcp_nanqinlang.o" > Makefile
 			make -C /lib/modules/$(uname -r)/build M="$(pwd)" modules CC=/usr/bin/gcc
 		chmod +x ./tcp_nanqinlang.ko
@@ -178,7 +178,7 @@ startbbrmod_nanqinlang(){
 		fi
 		apt-get -y install make gcc-4.9
 		mkdir bbrmod && cd bbrmod
-		wget -N --no-check-certificate https://raw.githubusercontent.com/chiakge/Linux-NetSpeed/master/bbr/tcp_nanqinlang.c
+		wget -N https://raw.githubusercontent.com/chiakge/Linux-NetSpeed/master/bbr/tcp_nanqinlang.c
 		echo "obj-m := tcp_nanqinlang.o" > Makefile
 			make -C /lib/modules/$(uname -r)/build M="$(pwd)" modules CC=/usr/bin/gcc-4.9
 		install tcp_nanqinlang.ko /lib/modules/$(uname -r)/kernel
@@ -202,7 +202,7 @@ startlotserver(){
 		apt-get update
 		apt-get install ethtool
 	fi
-	bash <(wget --no-check-certificate -qO- https://raw.githubusercontent.com/chiakge/lotServer/master/Install.sh) install
+	bash <(wget -qO- https://raw.githubusercontent.com/chiakge/lotServer/master/Install.sh) install
 	sed -i '/advinacc/d' /appex/etc/config
 	sed -i '/maxmode/d' /appex/etc/config
 	echo -e "advinacc=\"1\"
@@ -246,7 +246,7 @@ remove_all(){
 		sed -i "/${key}/d" /etc/sysctl.conf
 	done
 	if [[ -e /appex/bin/lotServer.sh ]]; then
-		bash <(wget --no-check-certificate -qO- https://github.com/MoeClub/lotServer/raw/master/Install.sh) uninstall
+		bash <(wget -qO- https://github.com/MoeClub/lotServer/raw/master/Install.sh) uninstall
 	fi
 	clear
 	echo -e "${Info} Clear acceleration is complete."
@@ -303,14 +303,14 @@ net.ipv4.ip_forward = 1">>/etc/sysctl.conf
 #Update script
 Update_Shell(){
 	echo -e "The current version is [ ${sh_ver} ], start checking the latest version..."
-	sh_new_ver=$(wget --no-check-certificate -qO- "http://${github}/tcp.sh" | awk -F'"' '/sh_ver=/{print $2; exit}')
+	sh_new_ver=$(wget -qO- "https://${github}/tcp.sh" | awk -F'"' '/sh_ver=/{print $2; exit}')
 	[[ -z ${sh_new_ver} ]] && echo -e "${Error} Failed to detect the latest version!" && start_menu
 	if [[ ${sh_new_ver} != ${sh_ver} ]]; then
 		echo -e "Found a new version [ ${sh_new_ver} ], do you want to update? [Y/n]"
 		read -p "(Default: y):" yn
 		[[ -z "${yn}" ]] && yn="y"
 		if [[ ${yn} == [Yy] ]]; then
-			wget -N --no-check-certificate http://${github}/tcp.sh && chmod +x tcp.sh
+			wget -N https://${github}/tcp.sh && chmod +x tcp.sh
 			echo -e "The script has been updated to the latest version [ ${sh_new_ver} ] !"
 		else
 			echo && echo "Cancelled..." && echo

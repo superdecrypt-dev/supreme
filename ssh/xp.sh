@@ -1,67 +1,41 @@
 #!/bin/bash
-##----- Auto Remove Vmess
-data=($(grep '^###' /etc/xray/config.json | cut -d ' ' -f 2 | sort -u))
-now=$(date +"%Y-%m-%d")
-for user in "${data[@]}"; do
-exp=$(grep -w "^### $user" /etc/xray/config.json | cut -d ' ' -f 3 | sort -u)
-d1=$(date -d "$exp" +%s)
-d2=$(date -d "$now" +%s)
-exp2=$(((d1 - d2) / 86400))
-if [[ "$exp2" -le "0" ]]; then
-sed -i "/^### $user $exp/,/^},{/d" /etc/xray/config.json
-sed -i "/^### $user $exp/,/^},{/d" /etc/xray/config.json
-rm -f /etc/xray/$user-tls.json /etc/xray/$user-none.json
-fi
-done
 
-#----- Auto Remove Vless
-data=($(grep '^#&' /etc/xray/config.json | cut -d ' ' -f 2 | sort -u))
-now=$(date +"%Y-%m-%d")
-for user in "${data[@]}"; do
-exp=$(grep -w "^#& $user" /etc/xray/config.json | cut -d ' ' -f 3 | sort -u)
-d1=$(date -d "$exp" +%s)
-d2=$(date -d "$now" +%s)
-exp2=$(((d1 - d2) / 86400))
-if [[ "$exp2" -le "0" ]]; then
-sed -i "/^#& $user $exp/,/^},{/d" /etc/xray/config.json
-sed -i "/^#& $user $exp/,/^},{/d" /etc/xray/config.json
-fi
-done
+remove_xray_expired() {
+  local tag="$1"
+  local user exp d1 d2 exp_days
+  mapfile -t users < <(grep "^${tag}" /etc/xray/config.json | awk '{print $2}' | sort -u)
+  d2=$(date +%s)
 
-#----- Auto Remove Trojan
-data=($(grep '^#!' /etc/xray/config.json | cut -d ' ' -f 2 | sort -u))
-now=$(date +"%Y-%m-%d")
-for user in "${data[@]}"; do
-exp=$(grep -w "^#! $user" /etc/xray/config.json | cut -d ' ' -f 3 | sort -u)
-d1=$(date -d "$exp" +%s)
-d2=$(date -d "$now" +%s)
-exp2=$(((d1 - d2) / 86400))
-if [[ "$exp2" -le "0" ]]; then
-sed -i "/^#! $user $exp/,/^},{/d" /etc/xray/config.json
-sed -i "/^#! $user $exp/,/^},{/d" /etc/xray/config.json
-fi
-done
+  for user in "${users[@]}"; do
+    exp=$(grep -w "^${tag} ${user}" /etc/xray/config.json | awk '{print $3}' | sort -u)
+    [ -n "$exp" ] || continue
+    d1=$(date -d "$exp" +%s 2>/dev/null)
+    [ -n "$d1" ] || continue
+    exp_days=$(((d1 - d2) / 86400))
+    if [ "$exp_days" -le 0 ]; then
+      # Remove every matching client block for this user+exp pair.
+      while grep -q "^${tag} ${user} ${exp}" /etc/xray/config.json; do
+        sed -i "/^${tag} ${user} ${exp}/,/^},{/d" /etc/xray/config.json
+      done
+      if [ "$tag" = "###" ]; then
+        rm -f "/etc/xray/${user}-tls.json" "/etc/xray/${user}-none.json"
+      fi
+    fi
+  done
+}
+
+remove_xray_expired "###"
+remove_xray_expired "#&"
+remove_xray_expired "#!"
 systemctl restart xray
 
-
 ##------ Auto Remove SSH
-cut -d: -f1,8 /etc/shadow | sed /:$/d > /tmp/expirelist.txt
-totalaccounts=$(wc -l < /tmp/expirelist.txt)
-for ((i=1; i<=totalaccounts; i++)); do
-tuserval=$(head -n "$i" /tmp/expirelist.txt | tail -n 1)
-username=$(echo "$tuserval" | cut -f1 -d:)
-userexp=$(echo "$tuserval" | cut -f2 -d:)
-userexpireinseconds=$((userexp * 86400))
-tglexp=$(date -d @"$userexpireinseconds")
-tgl=$(echo "$tglexp" | awk -F" " '{print $3}')
-while [ ${#tgl} -lt 2 ]; do
-tgl="0"$tgl
-done
-while [ ${#username} -lt 15 ]; do
-username=$username" " 
-done
 todaystime=$(date +%s)
-if [ "$userexpireinseconds" -lt "$todaystime" ]; then
-userdel --force "$username"
-fi
-done
+while IFS=: read -r username userexp; do
+  [ -n "$username" ] || continue
+  [ -n "$userexp" ] || continue
+  userexpireinseconds=$((userexp * 86400))
+  if [ "$userexpireinseconds" -lt "$todaystime" ]; then
+    userdel --force "$username"
+  fi
+done < <(cut -d: -f1,8 /etc/shadow | sed '/:$/d')

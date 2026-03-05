@@ -106,8 +106,9 @@ totalram=$((total_ram / 1024))
 
 Name="Local"
 Exp="N/A"
-Domen=$(< /etc/xray/domain 2>/dev/null)
-if [ -z "$Domen" ]; then
+if [ -s /etc/xray/domain ]; then
+  Domen=$(< /etc/xray/domain)
+else
   Domen="N/A"
 fi
 echo -e ""

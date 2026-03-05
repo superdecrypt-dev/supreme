@@ -24,13 +24,14 @@ clear
             echo -e "\\E[0;41;36m      Add Vmess Account      \E[0m"
             echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 			echo ""
-			echo "A client with the specified name was already created, please choose another name."
-			echo ""
-			echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
-			read -n 1 -s -r -p "Press any key to back on menu"
-v2ray-menu
-		fi
-	done
+				echo "A client with the specified name was already created, please choose another name."
+				echo ""
+				echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+				read -n 1 -s -r -p "Press any key to back on menu"
+				m-vmess
+				exit 0
+			fi
+		done
 
 uuid=$(< /proc/sys/kernel/random/uuid)
 read -p "Expired (days): " masaaktif

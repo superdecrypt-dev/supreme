@@ -1,11 +1,30 @@
 #!/bin/bash
 
+set -o pipefail
+
 clear
 green='\e[0;32m'
 yell='\e[1;33m'
 tyblue='\e[1;36m'
 NC='\e[0m'
 red() { echo -e "\\033[31;1m${*}\\033[0m"; }
+RAW_BASE_URL="https://raw.githubusercontent.com/superdecrypt-dev/supreme/main"
+
+download_and_run() {
+  local remote_path="$1"
+  local local_name="$2"
+  local url="${RAW_BASE_URL}/${remote_path}"
+
+  if ! wget -q -O "$local_name" "$url"; then
+    echo -e "[ ${yell}ERROR${NC} ] Failed to download ${url}"
+    exit 1
+  fi
+  chmod +x "$local_name"
+  if ! "./$local_name"; then
+    echo -e "[ ${yell}ERROR${NC} ] Failed to execute ${local_name}"
+    exit 1
+  fi
+}
 
 cd /root || exit 1
 
@@ -83,7 +102,7 @@ sysctl -w net.ipv6.conf.default.disable_ipv6=1 >/dev/null 2>&1
 
 echo -e "[ ${green}INFO${NC} ] Preparing the install file"
 apt install git curl -y >/dev/null 2>&1
-apt install python -y >/dev/null 2>&1
+apt install python3 -y >/dev/null 2>&1
 echo -e "[ ${green}INFO${NC} ] Aight good ... installation file is ready"
 sleep 0.5
 mkdir -p /var/lib/ >/dev/null 2>&1
@@ -115,7 +134,7 @@ echo -e "$green      Install SSH Websocket               $NC"
 echo -e "\e[33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 sleep 0.5
 clear
-wget https://raw.githubusercontent.com/nanotechid/supreme/aio/ssh/ssh-vpn.sh && chmod +x ssh-vpn.sh && ./ssh-vpn.sh
+download_and_run "ssh/ssh-vpn.sh" "ssh-vpn.sh"
 
 # install xray
 echo -e "\e[33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
@@ -123,8 +142,8 @@ echo -e "$green          Install XRAY              $NC"
 echo -e "\e[33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 sleep 0.5
 clear
-wget https://raw.githubusercontent.com/nanotechid/supreme/aio/xray/ins-xray.sh && chmod +x ins-xray.sh && ./ins-xray.sh
-wget https://raw.githubusercontent.com/nanotechid/supreme/aio/sshws/insshws.sh && chmod +x insshws.sh && ./insshws.sh
+download_and_run "xray/ins-xray.sh" "ins-xray.sh"
+download_and_run "sshws/insshws.sh" "insshws.sh"
 
 clear
 cat > /root/.profile << END
@@ -143,10 +162,10 @@ END
 chmod 644 /root/.profile
 
 if [ -f /root/log-install.txt ]; then
-  rm /root/log-install.txt > /dev/null 2>&1
+  rm -f /root/log-install.txt > /dev/null 2>&1
 fi
 if [ -f /etc/afak.conf ]; then
-  rm /etc/afak.conf > /dev/null 2>&1
+  rm -f /etc/afak.conf > /dev/null 2>&1
 fi
 if [ ! -f /etc/log-create-user.log ]; then
   echo "Log All Account " > /etc/log-create-user.log
@@ -154,7 +173,14 @@ fi
 
 history -c
 echo "latest" > /opt/.ver
-curl -sS ifconfig.me > /etc/myipvps
+public_ip=$(curl -sS ifconfig.me 2>/dev/null || true)
+if [ -z "$public_ip" ]; then
+  public_ip=$(curl -sS ipinfo.io/ip 2>/dev/null || true)
+fi
+if [ -z "$public_ip" ]; then
+  public_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+fi
+echo "${public_ip:-N/A}" > /etc/myipvps
 
 echo " "
 echo "=====================-[ SUPREME ]-===================="

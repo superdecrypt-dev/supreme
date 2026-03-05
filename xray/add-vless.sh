@@ -22,13 +22,14 @@ clear
 		echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 		echo -e "\E[44;1;39m      Add Vless Account      \E[0m"
 		echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
-			echo ""
-			echo "A client with the specified name was already created, please choose another name."
-			echo ""
-			read -n 1 -s -r -p "Press any key to back on menu"
-			v2ray-menu
-		fi
-	done
+				echo ""
+				echo "A client with the specified name was already created, please choose another name."
+				echo ""
+				read -n 1 -s -r -p "Press any key to back on menu"
+				m-vless
+				exit 0
+			fi
+		done
 
 uuid=$(< /proc/sys/kernel/random/uuid)
 read -p "Expired (days): " masaaktif

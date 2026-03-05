@@ -1,21 +1,37 @@
 #!/bin/bash
 #installer Websocker tunneling 
+set -o errexit
+set -o nounset
+set -o pipefail
+
+RAW_BASE_URL="https://raw.githubusercontent.com/superdecrypt-dev/supreme/main"
 
 cd
 
+download_file() {
+  local dest="$1"
+  local remote_path="$2"
+  local url="${RAW_BASE_URL}/${remote_path}"
+
+  if ! wget -q -O "$dest" "$url"; then
+    echo "Failed to download ${url}"
+    exit 1
+  fi
+}
+
 #Install Script Websocket-SSH Python
-wget -O /usr/local/bin/ws-dropbear https://raw.githubusercontent.com/nanotechid/supreme/aio/sshws/ws-dropbear
-wget -O /usr/local/bin/ws-stunnel https://raw.githubusercontent.com/nanotechid/supreme/aio/sshws/ws-stunnel
+download_file /usr/local/bin/ws-dropbear "sshws/ws-dropbear"
+download_file /usr/local/bin/ws-stunnel "sshws/ws-stunnel"
 
 #izin permision
 chmod +x /usr/local/bin/ws-dropbear
 chmod +x /usr/local/bin/ws-stunnel
 
 #System Dropbear Websocket-SSH Python
-wget -O /etc/systemd/system/ws-dropbear.service https://raw.githubusercontent.com/nanotechid/supreme/aio/sshws/ws-dropbear.service
+download_file /etc/systemd/system/ws-dropbear.service "sshws/ws-dropbear.service"
 
 #System SSL/TLS Websocket-SSH Python
-wget -O /etc/systemd/system/ws-stunnel.service https://raw.githubusercontent.com/nanotechid/supreme/aio/sshws/ws-stunnel.service
+download_file /etc/systemd/system/ws-stunnel.service "sshws/ws-stunnel.service"
 
 
 #restart service

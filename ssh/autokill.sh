@@ -24,7 +24,8 @@ echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━�
 echo -e ""
 read -p "Select From Options [1-4 or x] :  " AutoKill
 if [ -z "$AutoKill" ]; then
-autokill-menu
+  m-sshovpn
+  exit 0
 fi
 echo -e ""
 case $AutoKill in
@@ -43,7 +44,6 @@ case $AutoKill in
                 echo -e ""
                 echo -e "======================================"                                                                                                                                 
                 service cron restart >/dev/null 2>&1
-                service cron reload >/dev/null 2>&1                                                                  
                 ;;
                 2)
                 read -p "Multilogin Maximum Number Of Allowed: " max
@@ -60,7 +60,6 @@ case $AutoKill in
                 echo -e ""
                 echo -e "======================================"
                 service cron restart >/dev/null 2>&1
-                service cron reload >/dev/null 2>&1
                 ;;
                 3)
                 read -p "Multilogin Maximum Number Of Allowed: " max
@@ -77,7 +76,6 @@ case $AutoKill in
                 echo -e ""
                 echo -e "======================================"
                 service cron restart >/dev/null 2>&1
-                service cron reload >/dev/null 2>&1
                 ;;
                 4)
                 clear
@@ -89,11 +87,11 @@ case $AutoKill in
                 echo -e ""
                 echo -e "======================================"
                 service cron restart >/dev/null 2>&1
-                service cron reload >/dev/null 2>&1
                 ;;
                 x)
                 clear
-                autokill-menu
+                m-sshovpn
+                exit 0
                 ;;
         esac
 read -n 1 -s -r -p "Press any key to back on menu"
