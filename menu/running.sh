@@ -9,67 +9,67 @@ clear
 
 # GETTING OS INFORMATION
 if [ -f /etc/os-release ]; then
-  # shellcheck disable=SC1091
-  source /etc/os-release
+	# shellcheck disable=SC1091
+	source /etc/os-release
 fi
 Tipe=${NAME:-Unknown}
 
 # VPS ISP INFORMATION
 MYIP=$(curl -sS ifconfig.me 2>/dev/null)
 if [ -z "$MYIP" ]; then
-  MYIP=$(curl -sS ipinfo.io/ip 2>/dev/null)
+	MYIP=$(curl -sS ipinfo.io/ip 2>/dev/null)
 fi
 if [ -z "$MYIP" ]; then
-  MYIP=$(hostname -I 2>/dev/null | awk '{print $1}')
+	MYIP=$(hostname -I 2>/dev/null | awk '{print $1}')
 fi
 if [ -z "$MYIP" ]; then
-  MYIP="N/A"
+	MYIP="N/A"
 fi
 
 systemd_state() {
-  local unit=$1
-  local state
+	local unit=$1
+	local state
 
-  if ! command -v systemctl >/dev/null 2>&1; then
-    echo "missing"
-    return
-  fi
+	if ! command -v systemctl >/dev/null 2>&1; then
+		echo "missing"
+		return
+	fi
 
-  state=$(systemctl is-active "$unit" 2>/dev/null || true)
-  if [ "$state" = "active" ]; then
-    echo "running"
-  elif [ -z "$state" ] || [ "$state" = "unknown" ] || [ "$state" = "not-found" ]; then
-    echo "missing"
-  else
-    echo "stopped"
-  fi
+	state=$(systemctl is-active "$unit" 2>/dev/null || true)
+	if [ "$state" = "active" ]; then
+		echo "running"
+	elif [ -z "$state" ] || [ "$state" = "unknown" ] || [ "$state" = "not-found" ]; then
+		echo "missing"
+	else
+		echo "stopped"
+	fi
 }
 
 initd_state() {
-  local service=$1
+	local service=$1
 
-  if [ ! -x "/etc/init.d/$service" ]; then
-    echo "missing"
-    return
-  fi
+	if [ ! -x "/etc/init.d/$service" ]; then
+		echo "missing"
+		return
+	fi
 
-  if "/etc/init.d/$service" status >/dev/null 2>&1; then
-    echo "running"
-  else
-    echo "stopped"
-  fi
+	if "/etc/init.d/$service" status >/dev/null 2>&1; then
+		echo "running"
+	else
+		echo "stopped"
+	fi
 }
 
 format_status() {
-  local state=$1
+	local state=$1
 
-  if [ "$state" = "running" ]; then
-    echo " ${GREEN}Running ${NC}( No Error )"
-  elif [ "$state" = "missing" ]; then
-    echo "${ORANGE}  Not Installed ${NC}( Skipped )"
-  else
-    echo "${RED}  Not Running ${NC}  ( Error )"
-  fi
+	if [ "$state" = "running" ]; then
+		echo " ${GREEN}Running ${NC}( No Error )"
+	elif [ "$state" = "missing" ]; then
+		echo "${ORANGE}  Not Installed ${NC}( Skipped )"
+	else
+		echo "${RED}  Not Running ${NC}  ( Error )"
+	fi
 }
 
 # CHECK STATUS
@@ -107,9 +107,9 @@ totalram=$((total_ram / 1024))
 Name="Local"
 Exp="N/A"
 if [ -s /etc/xray/domain ]; then
-  Domen=$(< /etc/xray/domain)
+	Domen=$(</etc/xray/domain)
 else
-  Domen="N/A"
+	Domen="N/A"
 fi
 echo -e ""
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m${NC}"

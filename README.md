@@ -15,7 +15,10 @@
 - Trojan gRPC : 443
 - Shadowsocks gRPC : 443
 
+Requirement: `curl` harus tersedia di server.
+Supported OS minimum: Ubuntu `20.04+` atau Debian `11+`.
 
 
 ```bash
-sysctl -w net.ipv6.conf.all.disable_ipv6=1 && sysctl -w net.ipv6.conf.default.disable_ipv6=1 && apt update && apt install -y bzip2 gzip coreutils screen curl unzip git && git clone https://github.com/superdecrypt-dev/supreme /root/supreme && cd /root/supreme && chmod +x setup.sh && sed -i -e 's/\r$//' setup.sh && screen -S setup ./setup.sh
+bash <(curl -fsSL https://raw.githubusercontent.com/superdecrypt-dev/supreme/main/setup.sh)
+```

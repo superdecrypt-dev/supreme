@@ -5,9 +5,9 @@ Info="${Green_font_prefix}[ON]${Font_color_suffix}"
 Error="${Red_font_prefix}[OFF]${Font_color_suffix}"
 cek=$(grep -c -E "^# Autokill" /etc/cron.d/tendang)
 if [[ "$cek" = "1" ]]; then
-sts="${Info}"
+	sts="${Info}"
 else
-sts="${Error}"
+	sts="${Error}"
 fi
 clear
 echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
@@ -22,77 +22,77 @@ echo -e "[4]  Turn Off AutoKill/MultiLogin"
 echo ""
 echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 echo -e ""
-read -p "Select From Options [1-4 or x] :  " AutoKill
+read -r -p "Select From Options [1-4 or x] :  " AutoKill
 if [ -z "$AutoKill" ]; then
-  m-sshovpn
-  exit 0
+	m-sshovpn
+	exit 0
 fi
 echo -e ""
 case $AutoKill in
-                1)
-                read -p "Multilogin Maximum Number Of Allowed: " max
-                echo -e ""
-                sleep 1
-                clear
-                echo "# Autokill" >/etc/cron.d/tendang
-                echo "*/5 * * * *  root /usr/bin/tendang $max" >>/etc/cron.d/tendang
-                echo -e ""
-                echo -e "======================================"
-                echo -e ""
-                echo -e "      Allowed MultiLogin : $max"
-                echo -e "      AutoKill Every     : 5 Minutes"      
-                echo -e ""
-                echo -e "======================================"                                                                                                                                 
-                service cron restart >/dev/null 2>&1
-                ;;
-                2)
-                read -p "Multilogin Maximum Number Of Allowed: " max
-                echo -e ""
-                sleep 1
-                clear
-                echo "# Autokill" >/etc/cron.d/tendang
-                echo "*/10 * * * *  root /usr/bin/tendang $max" >>/etc/cron.d/tendang
-                echo -e ""
-                echo -e "======================================"
-                echo -e ""
-                echo -e "      Allowed MultiLogin : $max"
-                echo -e "      AutoKill Every     : 10 Minutes"
-                echo -e ""
-                echo -e "======================================"
-                service cron restart >/dev/null 2>&1
-                ;;
-                3)
-                read -p "Multilogin Maximum Number Of Allowed: " max
-                echo -e ""
-                sleep 1
-                clear
-                echo "# Autokill" >/etc/cron.d/tendang
-                echo "*/15 * * * *  root /usr/bin/tendang $max" >>/etc/cron.d/tendang
-                echo -e ""
-                echo -e "======================================"
-                echo -e ""
-                echo -e "      Allowed MultiLogin : $max"
-                echo -e "      AutoKill Every     : 15 Minutes"
-                echo -e ""
-                echo -e "======================================"
-                service cron restart >/dev/null 2>&1
-                ;;
-                4)
-                clear
-                rm -f /etc/cron.d/tendang
-                echo -e ""
-                echo -e "======================================"
-                echo -e ""
-                echo -e "      AutoKill MultiLogin Turned Off  "
-                echo -e ""
-                echo -e "======================================"
-                service cron restart >/dev/null 2>&1
-                ;;
-                x)
-                clear
-                m-sshovpn
-                exit 0
-                ;;
-        esac
+1)
+	read -r -p "Multilogin Maximum Number Of Allowed: " max
+	echo -e ""
+	sleep 1
+	clear
+	echo "# Autokill" >/etc/cron.d/tendang
+	echo "*/5 * * * *  root /usr/bin/tendang $max" >>/etc/cron.d/tendang
+	echo -e ""
+	echo -e "======================================"
+	echo -e ""
+	echo -e "      Allowed MultiLogin : $max"
+	echo -e "      AutoKill Every     : 5 Minutes"
+	echo -e ""
+	echo -e "======================================"
+	service cron restart >/dev/null 2>&1
+	;;
+2)
+	read -r -p "Multilogin Maximum Number Of Allowed: " max
+	echo -e ""
+	sleep 1
+	clear
+	echo "# Autokill" >/etc/cron.d/tendang
+	echo "*/10 * * * *  root /usr/bin/tendang $max" >>/etc/cron.d/tendang
+	echo -e ""
+	echo -e "======================================"
+	echo -e ""
+	echo -e "      Allowed MultiLogin : $max"
+	echo -e "      AutoKill Every     : 10 Minutes"
+	echo -e ""
+	echo -e "======================================"
+	service cron restart >/dev/null 2>&1
+	;;
+3)
+	read -r -p "Multilogin Maximum Number Of Allowed: " max
+	echo -e ""
+	sleep 1
+	clear
+	echo "# Autokill" >/etc/cron.d/tendang
+	echo "*/15 * * * *  root /usr/bin/tendang $max" >>/etc/cron.d/tendang
+	echo -e ""
+	echo -e "======================================"
+	echo -e ""
+	echo -e "      Allowed MultiLogin : $max"
+	echo -e "      AutoKill Every     : 15 Minutes"
+	echo -e ""
+	echo -e "======================================"
+	service cron restart >/dev/null 2>&1
+	;;
+4)
+	clear
+	rm -f /etc/cron.d/tendang
+	echo -e ""
+	echo -e "======================================"
+	echo -e ""
+	echo -e "      AutoKill MultiLogin Turned Off  "
+	echo -e ""
+	echo -e "======================================"
+	service cron restart >/dev/null 2>&1
+	;;
+x)
+	clear
+	m-sshovpn
+	exit 0
+	;;
+esac
 read -n 1 -s -r -p "Press any key to back on menu"
 menu

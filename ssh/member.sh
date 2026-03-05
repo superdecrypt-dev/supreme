@@ -2,21 +2,21 @@
 clear
 echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 echo -e "\E[0;41;36m                 MEMBER SSH               \E[0m"
-echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"      
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 echo "USERNAME          EXP DATE          STATUS"
 echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 while IFS=: read -r akun _ uid _ _ _ _; do
-if [[ "$akun" = "nobody" ]] || [[ "$uid" -lt 1000 ]]; then
-continue
-fi
-exp=$(chage -l "$akun" | awk -F": " '/Account expires/{print $2}')
-status=$(passwd -S "$akun" | awk '{print $2}')
-if [[ "$status" = "L" ]]; then
-printf "%-17s %2s %-17s %2s \n" "$akun" "$exp     " "LOCKED"
-else
-printf "%-17s %2s %-17s %2s \n" "$akun" "$exp     " "UNLOCKED"
-fi
-done < /etc/passwd
+	if [[ "$akun" = "nobody" ]] || [[ "$uid" -lt 1000 ]]; then
+		continue
+	fi
+	exp=$(chage -l "$akun" | awk -F": " '/Account expires/{print $2}')
+	status=$(passwd -S "$akun" | awk '{print $2}')
+	if [[ "$status" = "L" ]]; then
+		printf "%-17s %-17s %s\n" "$akun" "$exp" "LOCKED"
+	else
+		printf "%-17s %-17s %s\n" "$akun" "$exp" "UNLOCKED"
+	fi
+done </etc/passwd
 JUMLAH="$(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1}' /etc/passwd | wc -l)"
 echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 echo "Account number: $JUMLAH user"

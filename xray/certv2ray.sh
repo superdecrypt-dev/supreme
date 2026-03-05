@@ -13,12 +13,12 @@ domain=$(cut -d'=' -f2 /var/lib/ipvps.conf)
 port80_proc=$(lsof -i:80 -sTCP:LISTEN -nP 2>/dev/null | awk 'NR==2 {print $1}')
 
 if [ -n "$port80_proc" ]; then
-  sleep 1
-  echo -e "[ ${red}WARNING${NC} ] Detected port 80 used by $port80_proc"
-  systemctl stop "$port80_proc"
-  sleep 2
-  echo -e "[ ${green}INFO${NC} ] Processing to stop $port80_proc"
-  sleep 1
+	sleep 1
+	echo -e "[ ${red}WARNING${NC} ] Detected port 80 used by $port80_proc"
+	systemctl stop "$port80_proc"
+	sleep 2
+	echo -e "[ ${green}INFO${NC} ] Processing to stop $port80_proc"
+	sleep 1
 fi
 
 echo -e "[ ${green}INFO${NC} ] Starting renew cert..."
@@ -28,12 +28,12 @@ sleep 2
 ~/.acme.sh/acme.sh --installcert -d "$domain" --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
 echo -e "[ ${green}INFO${NC} ] Renew cert done..."
 sleep 2
-printf '%s\n' "$domain" > /etc/xray/domain
+printf '%s\n' "$domain" >/etc/xray/domain
 
 if [ -n "$port80_proc" ]; then
-  echo -e "[ ${green}INFO${NC} ] Starting service $port80_proc"
-  sleep 2
-  systemctl restart "$port80_proc"
+	echo -e "[ ${green}INFO${NC} ] Starting service $port80_proc"
+	sleep 2
+	systemctl restart "$port80_proc"
 fi
 
 systemctl restart nginx

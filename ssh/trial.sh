@@ -1,9 +1,9 @@
 #!/bin/bash
 
 if grep -qow "XRAY" /root/log-install.txt; then
-  domen=$(< /etc/xray/domain)
+	domen=$(</etc/xray/domain)
 else
-  domen=$(< /etc/v2ray/domain)
+	domen=$(</etc/v2ray/domain)
 fi
 portsshws=$(grep -w "SSH Websocket" /root/log-install.txt | cut -d: -f2 | awk '{print $1}')
 wsssl=$(grep -w "SSH SSL Websocket" /root/log-install.txt | cut -d: -f2 | awk '{print $1}')
@@ -24,7 +24,7 @@ sleep 0.5
 clear
 useradd -e "$(date -d "$masaaktif days" +"%Y-%m-%d")" -s /bin/false -M "$Login"
 exp=$(chage -l "$Login" | awk -F": " '/Account expires/{print $2}')
-echo -e "$Pass\n$Pass\n" | passwd "$Login" > /dev/null 2>&1
+echo -e "$Pass\n$Pass\n" | passwd "$Login" >/dev/null 2>&1
 
 echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 echo -e "\E[0;41;36m            TRIAL SSH              \E[0m"
@@ -46,7 +46,7 @@ echo -e "Payload WSS"
 echo -e "GET wss://isi_bug_disini HTTP/1.1[crlf]Host: ${domen}[crlf]Upgrade: websocket[crlf][crlf]"
 echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 echo -e "Payload WS"
-echo -e "GET / HTTP/1.1[crlf]Host: $domen[crlf]Upgrade: websocket[crlf][crlf]"
+echo -e "GET / HTTP/1.1[crlf]Host: ${domen}[crlf]Upgrade: websocket[crlf][crlf]"
 echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 
 echo ""

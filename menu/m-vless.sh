@@ -13,19 +13,41 @@ echo -e " [\e[36m•5\e[0m] Check User Login Vless "
 echo -e ""
 echo -e " [\e[31m•0\e[0m] \e[31mBACK TO MENU\033[0m"
 echo -e ""
-echo -e   "Press x or [ Ctrl+C ] • To-Exit"
+echo -e "Press x or [ Ctrl+C ] • To-Exit"
 echo ""
 echo -e "\e[33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 echo -e ""
-read -p " Select menu :  "  opt
+read -r -p " Select menu :  " opt
 echo -e ""
 case $opt in
-1) clear ; add-vless ;;
-2) clear ; trialvless ;;
-3) clear ; renew-vless ;;
-4) clear ; del-vless ;;
-5) clear ; cek-vless ;;
-0) clear ; menu ;;
+1)
+	clear
+	add-vless
+	;;
+2)
+	clear
+	trialvless
+	;;
+3)
+	clear
+	renew-vless
+	;;
+4)
+	clear
+	del-vless
+	;;
+5)
+	clear
+	cek-vless
+	;;
+0)
+	clear
+	menu
+	;;
 x) exit ;;
-*) echo "salah tekan " ; sleep 1 ; m-vless ;;
+*)
+	echo "salah tekan "
+	sleep 1
+	m-vless
+	;;
 esac

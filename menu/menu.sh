@@ -3,17 +3,17 @@
 Name="Local"
 Exp2="N/A"
 
-domain=$(< /etc/xray/domain 2>/dev/null)
+domain=$(</etc/xray/domain 2>/dev/null)
 [ -n "$domain" ] || domain="N/A"
 
 if command -v curl >/dev/null 2>&1; then
-  ISP=$(curl -s ipinfo.io/org?token=7578ac19afd785 | cut -d " " -f 2-10)
-  CITY=$(curl -s ipinfo.io/city?token=7578ac19afd785)
-  IPVPS=$(curl -s ipinfo.io/ip?token=7578ac19afd785)
+	ISP=$(curl -s ipinfo.io/org?token=7578ac19afd785 | cut -d " " -f 2-10)
+	CITY=$(curl -s ipinfo.io/city?token=7578ac19afd785)
+	IPVPS=$(curl -s ipinfo.io/ip?token=7578ac19afd785)
 else
-  ISP="N/A"
-  CITY="N/A"
-  IPVPS="N/A"
+	ISP="N/A"
+	CITY="N/A"
+	IPVPS="N/A"
 fi
 
 [ -n "$ISP" ] || ISP="N/A"
@@ -23,9 +23,9 @@ fi
 DATE2=$(date -R | cut -d " " -f -5)
 os_name=$(hostnamectl 2>/dev/null | awk -F: '/Operating System/ {sub(/^[ \t]+/, "", $2); print $2; exit}')
 if [ -z "$os_name" ] && [ -f /etc/os-release ]; then
-  # shellcheck disable=SC1091
-  source /etc/os-release
-  os_name=${PRETTY_NAME:-${NAME:-Unknown}}
+	# shellcheck disable=SC1091
+	source /etc/os-release
+	os_name=${PRETTY_NAME:-${NAME:-Unknown}}
 fi
 [ -n "$os_name" ] || os_name="Unknown"
 
@@ -62,14 +62,42 @@ read -r -p " Select menu :  " opt
 echo -e ""
 
 case $opt in
-1) clear ; m-sshovpn ;;
-2) clear ; m-vmess ;;
-3) clear ; m-vless ;;
-4) clear ; m-ssws ;;
-5) clear ; m-trojan ;;
-6) clear ; m-system ;;
-7) clear ; running ;;
-8) clear ; clearcache ;;
+1)
+	clear
+	m-sshovpn
+	;;
+2)
+	clear
+	m-vmess
+	;;
+3)
+	clear
+	m-vless
+	;;
+4)
+	clear
+	m-ssws
+	;;
+5)
+	clear
+	m-trojan
+	;;
+6)
+	clear
+	m-system
+	;;
+7)
+	clear
+	running
+	;;
+8)
+	clear
+	clearcache
+	;;
 x) exit ;;
-*) echo "Anda salah tekan " ; sleep 1 ; menu ;;
+*)
+	echo "Anda salah tekan "
+	sleep 1
+	menu
+	;;
 esac

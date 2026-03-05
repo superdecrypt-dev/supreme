@@ -1,16 +1,16 @@
 #!/bin/bash
 
-domain=$(< /etc/xray/domain)
+domain=$(</etc/xray/domain)
 tls=$(grep -w "Vless WS TLS" ~/log-install.txt | cut -d: -f2 | tr -d ' ')
 none=$(grep -w "Vless WS none TLS" ~/log-install.txt | cut -d: -f2 | tr -d ' ')
 user=trial$(</dev/urandom tr -dc X-Z0-9 | head -c4)
-uuid=$(< /proc/sys/kernel/random/uuid)
+uuid=$(</proc/sys/kernel/random/uuid)
 masaaktif=1
 exp=$(date -d "$masaaktif days" +"%Y-%m-%d")
-sed -i '/#vless$/a\#& '"$user $exp"'\
-},{"id": "'""$uuid""'","email": "'""$user""'"' /etc/xray/config.json
-sed -i '/#vlessgrpc$/a\#& '"$user $exp"'\
-},{"id": "'""$uuid""'","email": "'""$user""'"' /etc/xray/config.json
+sed -i "/#vless$/a\\#& ${user} ${exp}\\
+},{\"id\": \"${uuid}\",\"email\": \"${user}\"" /etc/xray/config.json
+sed -i "/#vlessgrpc$/a\\#& ${user} ${exp}\\
+},{\"id\": \"${uuid}\",\"email\": \"${user}\"" /etc/xray/config.json
 vlesslink1="vless://${uuid}@${domain}:$tls?path=/vless&security=tls&encryption=none&type=ws#${user}"
 vlesslink2="vless://${uuid}@${domain}:$none?path=/vless&encryption=none&type=ws#${user}"
 vlesslink3="vless://${uuid}@${domain}:$tls?mode=gun&security=tls&encryption=none&type=grpc&serviceName=vless-grpc&sni=bug.com#${user}"

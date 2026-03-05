@@ -17,23 +17,57 @@ echo -e " [\e[36m•9\e[0m] Cek Users Who Do Multi Login Multi"
 echo -e ""
 echo -e " [\e[31m•0\e[0m] \e[31mBACK TO MENU\033[0m"
 echo -e ""
-echo -e   "Press x or [ Ctrl+C ] • To-Exit"
+echo -e "Press x or [ Ctrl+C ] • To-Exit"
 echo ""
 echo -e "\e[33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 echo -e ""
-read -p " Select menu :  "  opt
+read -r -p " Select menu :  " opt
 echo -e ""
 case $opt in
-1) clear ; usernew ;;
-2) clear ; trial ;;
-3) clear ; renew ;;
-4) clear ; hapus ;;
-5) clear ; cek ;;
-6) clear ; member ;;
-7) clear ; delete ;;
-8) clear ; autokill ;;
-9) clear ; ceklim ;;
-0) clear ; menu ;;
+1)
+	clear
+	usernew
+	;;
+2)
+	clear
+	trial
+	;;
+3)
+	clear
+	renew
+	;;
+4)
+	clear
+	hapus
+	;;
+5)
+	clear
+	cek
+	;;
+6)
+	clear
+	member
+	;;
+7)
+	clear
+	delete
+	;;
+8)
+	clear
+	autokill
+	;;
+9)
+	clear
+	ceklim
+	;;
+0)
+	clear
+	menu
+	;;
 x) exit ;;
-*) echo "Anda salah tekan " ; sleep 1 ; m-sshovpn ;;
+*)
+	echo "Anda salah tekan "
+	sleep 1
+	m-sshovpn
+	;;
 esac

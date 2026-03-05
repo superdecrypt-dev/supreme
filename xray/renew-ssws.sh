@@ -3,16 +3,16 @@
 clear
 number_of_clients=$(grep -c -E '^### ' /etc/xray/config.json)
 if [ "$number_of_clients" = "0" ]; then
-  echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
-  echo -e "\\E[0;41;36m            Renew Shadowsocks           \E[0m"
-  echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
-  echo ""
-  echo "You have no existing clients!"
-  echo ""
-  echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
-  read -n 1 -s -r -p "Press any key to back on menu"
-  menu
-  exit 0
+	echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+	echo -e "\\E[0;41;36m            Renew Shadowsocks           \E[0m"
+	echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+	echo ""
+	echo "You have no existing clients!"
+	echo ""
+	echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+	read -n 1 -s -r -p "Press any key to back on menu"
+	menu
+	exit 0
 fi
 
 clear
@@ -26,17 +26,17 @@ echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━�
 read -rp "Input Username : " user
 
 if [ -z "$user" ]; then
-  menu
-  exit 0
+	menu
+	exit 0
 fi
 
 read -rp "Expired (days): " masaaktif
 exp=$(grep -wE "^### $user" /etc/xray/config.json | cut -d ' ' -f 3 | sort -u)
 if [ -z "$exp" ]; then
-  echo "User not found"
-  read -n 1 -s -r -p "Press any key to back on menu"
-  menu
-  exit 0
+	echo "User not found"
+	read -n 1 -s -r -p "Press any key to back on menu"
+	menu
+	exit 0
 fi
 
 now=$(date +%Y-%m-%d)
@@ -47,7 +47,7 @@ exp3=$((exp2 + masaaktif))
 exp4=$(date -d "$exp3 days" +"%Y-%m-%d")
 
 sed -i "/### $user/c\### $user $exp4" /etc/xray/config.json
-systemctl restart xray > /dev/null 2>&1
+systemctl restart xray >/dev/null 2>&1
 
 clear
 echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
