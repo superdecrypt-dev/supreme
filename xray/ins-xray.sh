@@ -181,12 +181,20 @@ else
 fi
 
 # nginx renew ssl
-echo -n '#!/bin/bash
-/etc/init.d/nginx stop
+cat >/usr/local/bin/ssl_renew.sh <<'EOF'
+#!/bin/bash
+if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files --type=service --no-legend 2>/dev/null | awk '{print $1}' | grep -qx 'nginx.service'; then
+	systemctl stop nginx >/dev/null 2>&1 || true
+else
+	/etc/init.d/nginx stop >/dev/null 2>&1 || true
+fi
 "/root/.acme.sh"/acme.sh --cron --home "/root/.acme.sh" &> /root/renew_ssl.log
-/etc/init.d/nginx start
-/etc/init.d/nginx status
-' >/usr/local/bin/ssl_renew.sh
+if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files --type=service --no-legend 2>/dev/null | awk '{print $1}' | grep -qx 'nginx.service'; then
+	systemctl start nginx >/dev/null 2>&1 || true
+else
+	/etc/init.d/nginx start >/dev/null 2>&1 || true
+fi
+EOF
 chmod +x /usr/local/bin/ssl_renew.sh
 existing_cron="$(crontab -l 2>/dev/null || true)"
 if ! printf '%s\n' "$existing_cron" | grep -q 'ssl_renew.sh'; then

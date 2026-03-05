@@ -277,7 +277,7 @@ rm -f /etc/nginx/sites-enabled/default
 rm -f /etc/nginx/sites-available/default
 download_file /etc/nginx/nginx.conf "ssh/nginx.conf"
 mkdir -p /home/vps/public_html
-/etc/init.d/nginx restart
+restart_service_if_present "nginx" "nginx"
 
 # install badvpn
 cd
@@ -300,7 +300,7 @@ fi
 for ssh_port in 22 200 500 40000 51443 58080; do
 	insert_before_match_once /etc/ssh/sshd_config "Port ${ssh_port}"
 done
-/etc/init.d/ssh restart
+restart_service_if_present "ssh" "ssh"
 
 echo "=== Install Dropbear ==="
 # install dropbear
@@ -310,9 +310,7 @@ set_or_append_kv /etc/default/dropbear "DROPBEAR_PORT" "143"
 set_or_append_kv /etc/default/dropbear "DROPBEAR_EXTRA_ARGS" "\"-p 50000 -p 109 -p 110 -p 69\""
 append_line_once /etc/shells "/bin/false"
 append_line_once /etc/shells "/usr/sbin/nologin"
-if ! /etc/init.d/dropbear restart; then
-	echo -e "[ ${yell}WARN${NC} ] Dropbear restart failed, installer will continue"
-fi
+restart_service_if_present "dropbear" "dropbear"
 
 cd
 # install stunnel
@@ -379,7 +377,7 @@ END
 		echo -e "[ ${yell}WARN${NC} ] Failed to enable/start Supreme Stunnel service"
 	fi
 else
-	/etc/init.d/stunnel4 restart || true
+	restart_service_if_present "stunnel4" "stunnel4"
 fi
 
 # install fail2ban
