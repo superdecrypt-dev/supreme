@@ -351,36 +351,14 @@ cat key.pem cert.pem >>/etc/stunnel/stunnel.pem
 chmod 600 /etc/stunnel/stunnel.pem
 
 # konfigurasi stunnel
-sed -i 's/ENABLED=0/ENABLED=1/g' /etc/default/stunnel4
+set_or_append_kv /etc/default/stunnel4 "ENABLED" "1"
 if command -v systemctl >/dev/null 2>&1; then
-	mkdir -p /run/stunnel4
-	chown stunnel4:stunnel4 /run/stunnel4 >/dev/null 2>&1 || true
-	cat >/etc/systemd/system/supreme-stunnel.service <<'END'
-[Unit]
-Description=Supreme Stunnel Service
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/stunnel4 /etc/stunnel/stunnel.conf
-Restart=always
-RestartSec=2
-AmbientCapabilities=CAP_NET_BIND_SERVICE
-CapabilityBoundingSet=CAP_NET_BIND_SERVICE
-NoNewPrivileges=true
-
-[Install]
-WantedBy=multi-user.target
-END
+	systemctl disable --now supreme-stunnel.service >/dev/null 2>&1 || true
+	rm -f /etc/systemd/system/supreme-stunnel.service
 	systemctl daemon-reload
-	systemctl disable --now stunnel4.service >/dev/null 2>&1 || true
-	if ! systemctl enable --now supreme-stunnel.service >/dev/null 2>&1; then
-		echo -e "[ ${yell}WARN${NC} ] Failed to enable/start Supreme Stunnel service"
-	fi
-else
-	restart_service_if_present "stunnel4" "stunnel4"
+	systemctl enable stunnel4.service >/dev/null 2>&1 || true
 fi
+restart_service_if_present "stunnel4" "stunnel4"
 
 # install fail2ban
 apt -y install fail2ban
@@ -494,7 +472,7 @@ echo -e "[ ${green}ok${NC} ] Restarting fail2ban "
 restart_service_if_present fail2ban "Fail2ban"
 sleep 0.5
 echo -e "[ ${green}ok${NC} ] Restarting stunnel4 "
-restart_service_if_present supreme-stunnel "Stunnel4"
+restart_service_if_present stunnel4 "Stunnel4"
 sleep 0.5
 echo -e "[ ${green}ok${NC} ] Restarting vnstat "
 restart_service_if_present vnstat "Vnstat"
